@@ -91,50 +91,53 @@ def _anchor_ok(text: str, section: str) -> bool:
     return bool(pattern.search(text))
 
 
-def _structure_ok(html: str, section: str) -> bool:
+def _structure_ok(html: str, section: str, domain: str = "") -> bool:
     """
-    Stronger structural check on the raw HTML.
+    Per-domain structural smell check on the raw HTML.
 
-    leginfo's "section not found" page has the same chrome as a real section page
-    but lacks the code hierarchy headings (DIVISION/CHAPTER/ARTICLE) and the
-    section-number heading itself.
+    leginfo.legislature.ca.gov has a specific "section not found" failure mode
+    where the page returns 200 with the section number echoed in the title chrome
+    but lacks the actual statute body. The leginfo strict check requires both
+    a code-hierarchy heading (DIVISION/CHAPTER/ARTICLE) AND the section number
+    in a heading. Other state legislature sites structure their pages
+    differently (e.g., flsenate.gov has only generic site headings) and would
+    fail that check on real, valid statute pages.
 
-    Real section page (CA Veh Code § 22350) has headings like:
-        Code Section
-        Code Text
-        Vehicle Code - VEH
-        DIVISION 11. RULES OF THE ROAD [21000 - 23336]
-        CHAPTER 7. Speed Laws [22348 - 22445.6]
-        ARTICLE 1. Generally [22348 - 22366]
-        22350.                          <- the section heading itself
+    Strategy:
+      * For leginfo: keep the strict check.
+      * For everything else: a lighter check — the section number must appear
+        somewhere on the page AND the page must have substantive body content.
+        The anchor + MIN_TEXT_CHARS checks the caller already runs cover that
+        case, so we just return True here.
 
-    Bogus section (§ 99999) only has "Code Section" / "Code Text" — no hierarchy,
-    no section heading. We require at least one DIVISION/CHAPTER/ARTICLE heading
-    AND the section number to appear in some heading.
-
-    For non-leginfo sources we accept either signal individually — those sites
-    structure their pages differently. This function is a CA-specific tighten.
+    If we add per-domain false-positive failure modes for new sources, encode
+    them as additional branches here.
     """
     base = section.split("(", 1)[0].strip()
-    headings: list[str] = []
-    for m in re.finditer(r"<h\d[^>]*>(.*?)</h\d>", html, re.S | re.I):
-        inner = re.sub(r"<[^>]+>", "", m.group(1)).strip()
-        if inner:
-            headings.append(inner)
-    if not headings:
-        # No headings at all — can't structurally verify; defer to the text anchor.
-        return True
 
-    has_hierarchy = any(
-        re.search(r"\b(DIVISION|CHAPTER|ARTICLE|TITLE|PART|SUBCHAPTER|SUBPART)\b",
-                  h, re.I)
-        for h in headings
-    )
-    has_section_heading = any(
-        re.search(rf"(?<!\d){re.escape(base)}(?!\d)", h)
-        for h in headings
-    )
-    return has_hierarchy and has_section_heading
+    if "leginfo.legislature.ca.gov" in domain.lower():
+        # leginfo strict mode
+        headings: list[str] = []
+        for m in re.finditer(r"<h\d[^>]*>(.*?)</h\d>", html, re.S | re.I):
+            inner = re.sub(r"<[^>]+>", "", m.group(1)).strip()
+            if inner:
+                headings.append(inner)
+        if not headings:
+            return True
+        has_hierarchy = any(
+            re.search(r"\b(DIVISION|CHAPTER|ARTICLE|TITLE|PART|SUBCHAPTER|SUBPART)\b",
+                      h, re.I)
+            for h in headings
+        )
+        has_section_heading = any(
+            re.search(rf"(?<!\d){re.escape(base)}(?!\d)", h)
+            for h in headings
+        )
+        return has_hierarchy and has_section_heading
+
+    # Default: lighter check. Anchor + body-length already gate the result
+    # in the caller; if we got here both passed. Trust them.
+    return True
 
 
 def _domain_ok(url: str, expected_domain: str) -> bool:
@@ -209,7 +212,7 @@ def verify(citation: str, *, timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any]
             url=final_url,
         )
 
-    if not _structure_ok(resp.text, parsed.section):
+    if not _structure_ok(resp.text, parsed.section, domain=expected_domain):
         return _miss(
             citation,
             f"page lacks code-hierarchy headings or section heading for {parsed.section.split('(', 1)[0]!r} "

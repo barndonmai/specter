@@ -54,12 +54,12 @@ def _ny_veh_traf(section: str) -> str:
 
 
 def _fl_stat(section: str) -> str:
-    # Florida statutes. URL is per-section.
+    # Florida statutes. flsenate.gov serves clean per-section pages with
+    # the section number echoed throughout the body. The legacy
+    # leg.state.fl.us cfm URL returns a shell page that fails the anchor
+    # check.
     base = section.split("(", 1)[0].strip()
-    return (
-        "https://www.leg.state.fl.us/Statutes/index.cfm?"
-        f"App_mode=Display_Statute&Search_String=&URL=Sections/{base}.html"
-    )
+    return f"https://www.flsenate.gov/Laws/Statutes/2024/{base}"
 
 
 def _il_625_ilcs(section: str) -> str:
@@ -74,7 +74,7 @@ URL_BUILDERS: dict[str, UrlBuilder] = {
     "Cal. Veh. Code":         UrlBuilder("leginfo.legislature.ca.gov",  _ca_veh_code),
     "Tex. Transp. Code":      UrlBuilder("statutes.capitol.texas.gov",  _tx_transp_code),
     "N.Y. Veh. & Traf. Law":  UrlBuilder("nysenate.gov",                _ny_veh_traf),
-    "Fla. Stat.":             UrlBuilder("leg.state.fl.us",             _fl_stat),
+    "Fla. Stat.":             UrlBuilder("flsenate.gov",                _fl_stat),
     "625 ILCS":               UrlBuilder("ilga.gov",                    _il_625_ilcs),
 }
 
