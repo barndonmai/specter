@@ -19,6 +19,7 @@ from harvester.schema import CONTRIBUTING_FACTORS
 from tagger.enrich import LEGAL_TOPICS
 from api.voyage_embed import embed
 from api import chroma_store
+from api import organizer
 import wiki as authority_wiki
 
 load_dotenv()
@@ -157,6 +158,89 @@ class AskBody(BaseModel):
     min_topic_confidence: Optional[float] = None
     pi_only: bool = False
     k: int = 8
+
+
+# ============================================================================
+# Organizer — the paralegal workspace
+# ============================================================================
+
+@app.get("/comparables")
+def comparables(
+    state: Optional[str] = Query(None, description="2-letter state code"),
+    injury: Optional[str] = Query(None, description="substring match in injury_type"),
+    defendant: Optional[str] = Query(None, description="substring match in defendant_type"),
+    min_amount: Optional[int] = Query(None, ge=0),
+    max_amount: Optional[int] = Query(None, ge=0),
+    year_from: Optional[int] = Query(None, ge=1990, le=2100),
+    year_to: Optional[int] = Query(None, ge=1990, le=2100),
+    sort: str = Query("amount-desc", description="amount-desc | amount-asc | year-desc | year-asc | state"),
+    limit: int = Query(20, ge=1, le=200),
+):
+    """Sortable damages-comparables for the Organizer."""
+    return organizer.search_comparables(
+        state_code=state,
+        injury_substring=injury,
+        defendant_type_substring=defendant,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        year_from=year_from,
+        year_to=year_to,
+        sort=sort,
+        limit=limit,
+    )
+
+
+class OrganizeBody(BaseModel):
+    description: str
+    state: Optional[str] = None
+    legal_topic: Optional[str] = None
+    k_statutes: int = 8
+    k_comparables: int = 10
+
+
+@app.post("/organize")
+def organize(body: OrganizeBody):
+    """
+    Full Organizer pass on a case description:
+      1. Pull applicable statutes via /search (semantic + structured filters)
+      2. Pull damages comparables via state filter
+      3. Run gap-detection via Claude on the case description
+    Returns one structured paralegal-grade workspace JSON blob.
+    """
+    # 1) Statutes
+    qvec = embed([body.description], input_type="query")[0]
+    statutes = chroma_store.search(
+        qvec,
+        state=body.state,
+        legal_topic=body.legal_topic,
+        k=body.k_statutes,
+    )
+
+    # 2) Comparables
+    comps = organizer.search_comparables(
+        state_code=body.state,
+        sort="amount-desc",
+        limit=body.k_comparables,
+    )
+
+    # 3) Gaps (Claude)
+    try:
+        gaps = organizer.detect_gaps(body.description)
+    except Exception as e:
+        gaps = {
+            "have": [], "missing": [], "uncertain": [],
+            "readiness_score": 0.0,
+            "next_actions": [],
+            "_error": f"{type(e).__name__}: {e}",
+        }
+
+    return {
+        "description": body.description,
+        "filters": {"state": body.state, "legal_topic": body.legal_topic},
+        "statutes": statutes,
+        "comparables": comps,
+        "coverage": gaps,
+    }
 
 
 @app.post("/ask")

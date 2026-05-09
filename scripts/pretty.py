@@ -257,6 +257,99 @@ def cmd_topics(_args):
     render_topics(r)
 
 
+def _money(n: int) -> str:
+    return "${:,}".format(int(n))
+
+
+def cmd_organize(args):
+    body = {
+        "description": args.description,
+        "state": args.state,
+        "legal_topic": args.legal_topic,
+        "k_statutes": args.k_statutes,
+        "k_comparables": args.k_comparables,
+    }
+    r = httpx.post(f"{API}/organize", json=body, timeout=120)
+    if r.status_code != 200:
+        print(c(RED, f"error {r.status_code}: {r.text}"))
+        return
+    d = r.json()
+
+    header("📁 ORGANIZER  —  paralegal workspace")
+    print(f"  {c(DIM, 'description:')}")
+    txt = d['description']
+    if len(txt) > 600:
+        txt = txt[:600] + "…"
+    print(f"  {c(GREY, txt)}")
+
+    # Statutes
+    statutes = d.get("statutes", [])
+    print()
+    print(c(BOLD + GREEN, f"  └─ APPLICABLE STATUTES ({len(statutes)})"))
+    for s in statutes:
+        print(f"     {c(BOLD, s.get('citation','?'))}  {c(MAGENTA, '['+(s.get('legal_topic') or '?')+']')}")
+        text = (s.get('text') or '').strip()
+        if len(text) > 160:
+            text = text[:160] + "…"
+        print(f"       {c(DIM, text)}")
+        print(f"       {c(GREY + UND, s.get('source_url') or '')}")
+        print()
+
+    # Comparables
+    comps = d.get("comparables", {})
+    stats = comps.get("stats", {})
+    rows = comps.get("comparables", [])
+    print(c(BOLD + BLUE, f"  └─ DAMAGES COMPARABLES  (n={stats.get('n',0)})"))
+    if stats.get("n"):
+        print(f"     {c(MAGENTA, 'min:    ')}{_money(stats.get('min',0))}")
+        print(f"     {c(MAGENTA, 'median: ')}{c(BOLD + YELLOW, _money(stats.get('median',0)))}")
+        print(f"     {c(MAGENTA, 'mean:   ')}{_money(stats.get('mean',0))}")
+        print(f"     {c(MAGENTA, 'max:    ')}{_money(stats.get('max',0))}")
+        print()
+    for r_ in rows[:5]:
+        print(f"     {c(BOLD, r_.get('case_name','?'))}  "
+              f"{c(DIM, '['+r_.get('state_code','??')+']')}  "
+              f"{c(BOLD + GREEN, _money(r_.get('settlement_amount',0)))}  "
+              f"{c(DIM, '('+str(r_.get('year','?'))+', '+r_.get('outcome','?')+')')}")
+        print(f"        {c(DIM, r_.get('injury_type',''))}  "
+              f"{c(GREY, '—')}  {c(DIM, r_.get('liability_theory',''))}")
+        if r_.get("summary"):
+            print(f"        {c(DIM, r_['summary'][:140])}")
+        if r_.get("source_url"):
+            print(f"        {c(GREY + UND, r_['source_url'])}")
+        print()
+
+    # Coverage gaps
+    cov = d.get("coverage", {})
+    score = cov.get("readiness_score")
+    if isinstance(score, (int, float)):
+        score_color = (GREEN if score >= 0.7 else (YELLOW if score >= 0.4 else RED))
+        score_str = c(score_color + BOLD, f"{score*100:.0f}%")
+    else:
+        score_str = "—"
+    print(c(BOLD + YELLOW, f"  └─ COVERAGE  (readiness {score_str})"))
+    have = cov.get('have') or []
+    miss = cov.get('missing') or []
+    unc  = cov.get('uncertain') or []
+    nxt  = cov.get('next_actions') or []
+    if have:
+        print(c(GREEN, f"     have ({len(have)}):"))
+        for x in have:
+            print(f"       {c(GREEN, '+')} {x}")
+    if miss:
+        print(c(RED, f"     missing ({len(miss)}):"))
+        for x in miss:
+            print(f"       {c(RED, '-')} {x}")
+    if unc:
+        print(c(YELLOW, f"     uncertain ({len(unc)}):"))
+        for x in unc:
+            print(f"       {c(YELLOW, '?')} {x}")
+    if nxt:
+        print(c(CYAN + BOLD, f"     next actions:"))
+        for x in nxt:
+            print(f"       {c(CYAN, '→')} {x}")
+
+
 def cmd_sources(args):
     params = {}
     if args.state:
@@ -452,6 +545,14 @@ def main() -> None:
     ps.add_argument("--pi-only", action="store_true")
     ps.add_argument("--k", type=int, default=5)
     ps.set_defaults(func=cmd_search)
+
+    porg = sub.add_parser("organize", help="Full Organizer workspace for a case description")
+    porg.add_argument("description", help="Free-form case description")
+    porg.add_argument("--state", default=None)
+    porg.add_argument("--legal-topic", dest="legal_topic", default=None)
+    porg.add_argument("--k-statutes", dest="k_statutes", type=int, default=8)
+    porg.add_argument("--k-comparables", dest="k_comparables", type=int, default=10)
+    porg.set_defaults(func=cmd_organize)
 
     pa = sub.add_parser("ask")
     pa.add_argument("question")

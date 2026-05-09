@@ -1,4 +1,4 @@
-.PHONY: install seed ingest tag load serve eval clean demo demo-realistic demo-big-ass-query browse sources authority schema visualize-entire-architecture-project chroma-viz mermaid
+.PHONY: install seed ingest tag load serve eval clean demo demo-realistic demo-big-ass-query browse sources authority schema visualize-entire-architecture-project chroma-viz mermaid organizer
 
 export PYTHONPATH := .
 # Auto-prefer the project venv if it exists; otherwise fall back to system python3.
@@ -53,6 +53,10 @@ chroma-viz:
 # and live topic-flow. Open the .mmd files at https://mermaid.live.
 mermaid:
 	$(PY) scripts/mermaid.py all
+
+# Run the Organizer on the Anaheim phantom-vehicle hypo end-to-end.
+organizer:
+	$(PY) scripts/pretty.py organize "Single-vehicle crash on I-5 SB in Anaheim ~11:40 PM. Client traveling 65-67 mph in middle lane, posted 65. Lifted pickup tailgated with high beams, swerved right to pass, cut back into her lane forcing evasive maneuver. She struck center divider, spun, came to rest against wall. No contact. Other driver fled. CHP responded, no plate, no witnesses identified yet. Client has dashcam (grainy, plate unreadable). Chevron station 1/4 mile back may have exterior cameras. Injuries: concussion, cervical strain, distal radius fracture. 6 weeks off work. Single mother, two minor children. UM/UIM coverage. Carrier pre-denying as not a phantom vehicle (no contact)." --state CA --k-statutes 5 --k-comparables 5
 
 # Show the catalog of authoritative sources (kinds, jurisdictions, URLs).
 sources:
