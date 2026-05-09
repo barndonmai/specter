@@ -22,7 +22,15 @@ class StatuteRecord(BaseModel):
     source_url: str             # REQUIRED. Per ground rules.
 
     # Filled in by tagger/, not the scraper.
+    # contributing_factors must be a strict subset of CONTRIBUTING_FACTORS
+    # below — the held-out eval depends on canonical labels.
     contributing_factors: list[str] = []
+    # Non-canonical PI-relevant labels (e.g., "Bicycle Violation",
+    # "Equipment", "School Bus Violation"). NOT counted toward the eval, but
+    # surfaced to paralegals so they can find statutes that don't fit the
+    # standard 17 categories. Populated by seed_from_eval via
+    # data/factor_synonyms.yaml.
+    pi_context_tags: list[str] = []
     pi_relevant: Optional[bool] = None
     confidence: Optional[float] = None
 

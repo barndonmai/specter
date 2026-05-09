@@ -46,9 +46,14 @@ def to_metadata(record: dict[str, Any]) -> dict[str, Any]:
         "pi_relevant": bool(record.get("pi_relevant") or False),
         "confidence": float(record.get("confidence") or 0.0),
         "factors_csv": ",".join(record.get("contributing_factors") or []),
+        "context_tags_csv": ",".join(record.get("pi_context_tags") or []),
     }
     for f in record.get("contributing_factors") or []:
         md[_factor_flag(f)] = True
+    # Mirror the per-tag flag pattern for context tags so callers can filter
+    # `where={"context_Bicycle Violation": True}` exactly like factors.
+    for t in record.get("pi_context_tags") or []:
+        md[f"context_{t}"] = True
     return md
 
 
@@ -118,10 +123,13 @@ def _row(res: dict[str, Any], i: int) -> dict[str, Any]:
         "text": res["documents"][i],
         **(res["metadatas"][i] or {}),
     }
-    # Reconstruct contributing_factors from factors_csv so callers don't have
-    # to re-implement the unflatten. Chroma stores arrays as a CSV string +
-    # per-factor boolean flags; the canonical list is what consumers want.
+    # Reconstruct list-shaped fields from their CSV mirrors so callers don't
+    # have to re-implement the unflatten. Chroma stores arrays as a CSV string
+    # + per-value boolean flags; the canonical list is what consumers want.
     if "contributing_factors" not in out:
         csv = out.get("factors_csv") or ""
         out["contributing_factors"] = [f.strip() for f in csv.split(",") if f.strip()]
+    if "pi_context_tags" not in out:
+        csv = out.get("context_tags_csv") or ""
+        out["pi_context_tags"] = [t.strip() for t in csv.split(",") if t.strip()]
     return out

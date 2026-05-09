@@ -12,14 +12,87 @@ import csv
 import json
 import re
 import sys
+from collections import Counter
+from functools import lru_cache
 from pathlib import Path
 
-from harvester.schema import StatuteRecord, make_id
+import yaml
+
+from harvester.schema import StatuteRecord, make_id, CONTRIBUTING_FACTORS
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
+
+SYNONYMS_PATH = DATA_DIR / "factor_synonyms.yaml"
+
+
+# ---------- factor normalization ----------
+# Real state CSVs use non-canonical labels ("Speeding", "Fleeing the Scene",
+# "Bicycle Violation", etc.). Normalize at seed time:
+#   * Canonical 17 → contributing_factors as-is
+#   * Synonym → mapped canonical, into contributing_factors; original kept in
+#     pi_context_tags for traceability
+#   * context-only label → pi_context_tags only
+#   * unknown → pi_context_tags + warning so the data isn't lost
+
+_CANONICAL_SET = set(CONTRIBUTING_FACTORS)
+
+
+@lru_cache(maxsize=1)
+def _load_synonyms() -> tuple[dict[str, str], set[str]]:
+    """
+    Return (synonyms_map, context_only_set).
+
+    synonyms_map: non-canonical label -> canonical CONTRIBUTING_FACTORS entry.
+    context_only_set: labels that are PI-relevant but NOT canonical — they
+    don't get promoted to contributing_factors at seed time.
+    """
+    if not SYNONYMS_PATH.exists():
+        return {}, set()
+    with SYNONYMS_PATH.open() as f:
+        data = yaml.safe_load(f) or {}
+    syn_raw = data.get("synonyms") or {}
+    ctx_raw = data.get("context_only") or []
+    # Validate: every synonym target must be canonical.
+    bad = {k: v for k, v in syn_raw.items() if v not in _CANONICAL_SET}
+    if bad:
+        print(
+            f"[seed] WARN: {len(bad)} synonym(s) target non-canonical labels; "
+            f"these will be ignored: {bad}",
+            file=sys.stderr,
+        )
+    synonyms_map: dict[str, str] = {k: v for k, v in syn_raw.items() if v in _CANONICAL_SET}
+    context_only: set[str] = set(ctx_raw)
+    return synonyms_map, context_only
+
+
+def _normalize_factor(label: str) -> tuple[list[str], list[str]]:
+    """
+    Normalize a single CSV "Contributing Factor" cell.
+    Returns (contributing_factors_to_add, pi_context_tags_to_add).
+    """
+    label = (label or "").strip()
+    if not label:
+        return [], []
+
+    # Canonical hit — keep as-is.
+    if label in _CANONICAL_SET:
+        return [label], []
+
+    synonyms_map, context_only = _load_synonyms()
+
+    # Synonym hit — promote to canonical, keep original as context for traceability.
+    if label in synonyms_map:
+        return [synonyms_map[label]], [label]
+
+    # Explicit context-only — don't promote, keep as context.
+    if label in context_only:
+        return [], [label]
+
+    # Unknown — warn (caller aggregates), keep as context so data isn't lost.
+    return [], [label]
 
 # Map state-code → (jurisdiction name, code-slug, source URL builder)
 # Add new states here as you ingest them.
@@ -89,6 +162,7 @@ def seed_one(csv_path: Path) -> Path:
 
     records: list[dict] = []
     skipped: list[str] = []
+    unknown_labels: Counter = Counter()
     for r in rows:
         state_name = (r.get("State") or "").strip()
         profile = STATE_PROFILES.get(state_name)
@@ -98,7 +172,15 @@ def seed_one(csv_path: Path) -> Path:
 
         section = (r["Section #"] or "").strip()
         text = (r.get("Statute Language") or "").strip().strip('"').strip("\u201c\u201d")
-        factor = (r.get("Contributing Factor") or "").strip()
+        raw_factor = (r.get("Contributing Factor") or "").strip()
+
+        cf_add, ctx_add = _normalize_factor(raw_factor)
+        # Track labels that fell all the way through (no canonical, no synonym,
+        # no context_only entry) so we can flag them at the end of the run.
+        if raw_factor and not cf_add:
+            synonyms_map, context_only = _load_synonyms()
+            if raw_factor not in _CANONICAL_SET and raw_factor not in synonyms_map and raw_factor not in context_only:
+                unknown_labels[raw_factor] += 1
 
         rec = StatuteRecord(
             id=make_id(profile["state_code"], profile["code_slug"], section),
@@ -111,7 +193,8 @@ def seed_one(csv_path: Path) -> Path:
             text=text,
             hierarchy_path=["Vehicle Code"],
             source_url=profile["url_for"](section),
-            contributing_factors=[factor] if factor else [],
+            contributing_factors=cf_add,
+            pi_context_tags=ctx_add,
             pi_relevant=True,
             confidence=1.0,
         )
@@ -122,8 +205,12 @@ def seed_one(csv_path: Path) -> Path:
     out_path.write_text(json.dumps(records, indent=2, ensure_ascii=False))
     print(f"[seed] {csv_path.name:>32s} -> {out_path.name:>20s}  ({len(records)} records)")
     if skipped:
-        from collections import Counter
         print(f"       skipped (no state profile): {dict(Counter(skipped))}")
+    if unknown_labels:
+        print(
+            f"       \u26a0\ufe0f unknown factor labels (kept as pi_context_tags, "
+            f"add to data/factor_synonyms.yaml): {dict(unknown_labels)}"
+        )
     return out_path
 
 

@@ -130,12 +130,16 @@ def build_brief(record: dict[str, Any]) -> dict[str, Any]:
     title = (record.get("title") or "").strip()
     text = record.get("text") or ""
     source_url = record.get("source_url") or ""
-    factors_field = record.get("contributing_factors") or []
-    if isinstance(factors_field, str):
-        # If the metadata came in via Chroma's flattened CSV form.
-        factors = [f.strip() for f in factors_field.split(",") if f.strip()]
-    else:
-        factors = list(factors_field)
+
+    def _as_list(field) -> list[str]:
+        if not field:
+            return []
+        if isinstance(field, str):
+            return [s.strip() for s in field.split(",") if s.strip()]
+        return list(field)
+
+    factors = _as_list(record.get("contributing_factors"))
+    context_tags = _as_list(record.get("pi_context_tags"))
 
     notes = _factor_notes(factors)
 
@@ -149,6 +153,7 @@ def build_brief(record: dict[str, Any]) -> dict[str, Any]:
         "jurisdiction": record.get("jurisdiction") or "",
         "state_code": record.get("state_code") or "",
         "factors": factors,
+        "context_tags": context_tags,
         # Per-factor notes: list of dicts so renderers can decide what to show.
         "factor_notes": [
             {
@@ -274,6 +279,12 @@ def render_text(brief: dict[str, Any]) -> str:
                 lines.append(f"    – {e}")
         lines.append("")
 
+    if brief.get("context_tags"):
+        lines.append("Context (non-canonical PI tags on this statute):")
+        for t in brief["context_tags"]:
+            lines.append(f"  • {t}")
+        lines.append("")
+
     if brief.get("source_url"):
         lines.append("Source:")
         lines.append(f"  {brief['source_url']}")
@@ -338,6 +349,12 @@ def render_ansi(brief: dict[str, Any]) -> str:
             lines.append(b(_CYAN, "  Evidence to gather:"))
             for e in fn["evidence_to_gather"]:
                 lines.append(f"    – {e}")
+        lines.append("")
+
+    if brief.get("context_tags"):
+        lines.append(b(_CYAN, "Context (non-canonical PI tags on this statute):"))
+        for t in brief["context_tags"]:
+            lines.append(f"  {b(_DIM, '• ' + t)}")
         lines.append("")
 
     if brief.get("source_url"):

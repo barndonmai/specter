@@ -1,0 +1,132 @@
+# Specter factor synonym map
+#
+# Maps non-canonical contributing-factor labels (as they appear in real state
+# CSVs) to either:
+#   1. One of the 17 canonical CONTRIBUTING_FACTORS (see harvester/schema.py)
+#   2. A pi_context_tag — kept as context, NOT promoted to contributing_factors
+#
+# The eval (released CSV + held-out set) uses the canonical 17 EXACTLY. So
+# every record's `contributing_factors` field must be a strict subset of the
+# 17. Anything else goes into `pi_context_tags`, which Specter still surfaces
+# to paralegals but does NOT count toward the eval's category retrieval.
+#
+# How seed_from_eval.py uses this:
+#   - Read the CSV's "Contributing Factor" column.
+#   - If the value is one of the canonical 17 → goes into contributing_factors.
+#   - Else if it's in `synonyms` below → mapped to canonical, goes into
+#     contributing_factors. The original label is kept in pi_context_tags too,
+#     for traceability.
+#   - Else if it's in `context_only` below → goes into pi_context_tags only.
+#   - Else → unknown; printed as a warning + dropped into pi_context_tags so
+#     the data isn't lost.
+#
+# Add a teammate's judgment call here? Edit this file. Don't hardcode mappings
+# in the seed script.
+
+# ---------- canonical mappings ----------
+# Keys are exact strings from a state CSV; values are one of the 17 canonical
+# factor names. Apply at seed time. Comparison is case-sensitive (state CSVs
+# tend to use Title Case, so we match that).
+
+synonyms:
+  # Speeding family
+  "Speeding": "Driving Too Fast For Conditions"
+  "Excessive Speed": "Driving Too Fast For Conditions"
+  "Unsafe Speed": "Driving Too Fast For Conditions"
+
+  # Fleeing
+  "Fleeing the Scene": "Fleeing the Scene of a Collision"
+  "Hit and Run": "Fleeing the Scene of a Collision"
+  "Leaving Scene of Accident": "Fleeing the Scene of a Collision"
+  "Eluding Police": "Fleeing a Police Officer"
+  "Evading Police": "Fleeing a Police Officer"
+
+  # Right of way / yield / signals
+  "Right of Way": "Failure to Yield the Right-of-Way"
+  "Failure to Yield": "Failure to Yield the Right-of-Way"
+  "Traffic Signals and Signs": "Failure to Obey Traffic Control Device"
+  "Disregarding Traffic Signals": "Failure to Obey Traffic Control Device"
+  "Ran Red Light": "Failure to Obey Traffic Control Device"
+  "Ran Stop Sign": "Failure to Obey Traffic Control Device"
+
+  # Lane / position
+  "Wrong Side of Road": "Improper Lane of Travel"
+  "Wrong Way": "Improper Lane of Travel"
+  "Improper Lane Use": "Improper Lane of Travel"
+  "Improper Lane Change": "Failure to Maintain Lane"
+  "Failure to Stay in Lane": "Failure to Maintain Lane"
+
+  # Starting / stopping
+  "Unsafe Start": "Improper Starting"
+  "Improper Backing": "Improper Starting"
+  "Sudden Stop": "Improper Stopping"
+
+  # Following
+  "Tailgating": "Following Too Closely"
+
+  # Passing
+  "Unsafe Passing": "Improper Passing"
+  "Illegal Passing": "Improper Passing"
+
+  # Phone / distraction
+  "Distracted Driving": "Using a Wireless Telephone/Texting While Driving"
+  "Cell Phone Use": "Using a Wireless Telephone/Texting While Driving"
+  "Texting": "Using a Wireless Telephone/Texting While Driving"
+  "Texting While Driving": "Using a Wireless Telephone/Texting While Driving"
+
+  # Reckless / careless
+  # Note: "Careless Driving" is legally distinct (lower mens rea) but
+  # functionally adjacent for PI in most states. Mapped here for retrieval
+  # convenience; the brief formatter will flag the mens-rea nuance.
+  "Careless Driving": "Reckless Driving"
+  "Negligent Driving": "Reckless Driving"
+
+  # Turning
+  "Unsafe Turn": "Improper Turning"
+  "Illegal U-Turn": "Improper Turning"
+
+
+# ---------- context-only labels ----------
+# Real-state PI-relevant labels that DON'T fit the canonical 17. Kept as
+# pi_context_tags so Specter can still surface them to paralegals (e.g., a
+# cyclist case can search by "Bicycle Violation" even though it's not on the
+# eval taxonomy).
+
+context_only:
+  # Class-of-victim / class-of-vehicle context
+  - "Bicycle Violation"
+  - "Bicycle Operation"
+  - "Pedestrian Violation"
+  - "Motorcycle Violation"
+  - "School Bus Violation"
+  - "Emergency Vehicle Violation"
+  - "Truck/Commercial Vehicle"
+  - "Railroad Crossing"
+
+  # Vehicle condition / equipment context
+  - "Equipment"
+  - "Equipment Violation"
+  - "Defective Equipment"
+  - "Unsafe Door Opening"
+
+  # Conduct that's PI-adjacent but not a per-se factor
+  - "Racing"               # could be its own per-se in some states; kept context for now
+  - "Seat Belt Violation"  # mitigation / comparative-fault context, not contributing
+  - "Child Restraint Violation"
+  - "Open Container"
+  - "Drug Possession"
+
+  # Pure regulatory — useful for "did the defendant follow basic vehicle law"
+  - "Traffic Obstruction"
+  - "Parking Violation"
+  - "Noise Violation"
+  - "Registration Violation"
+  - "License Violation"
+  - "Insurance Violation"
+  - "Inspection Violation"
+
+  # Catch-alls used by some state CSVs when the underlying conduct is
+  # heterogeneous or not specifically per-se. Stored as context so the
+  # statute is still findable.
+  - "Traffic Violation"
+  - "Equipment/Parking"
