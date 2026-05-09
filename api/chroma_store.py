@@ -48,6 +48,13 @@ def to_metadata(record: dict[str, Any]) -> dict[str, Any]:
         "factors_csv": ",".join(record.get("contributing_factors") or []),
         "context_tags_csv": ",".join(record.get("pi_context_tags") or []),
     }
+    # Optional enrichment / case-law fields. None values would crash Chroma,
+    # so only include keys that have a real value.
+    for k in ("document_type", "authority_source", "legal_topic",
+              "jurisdiction_norm", "topic_confidence"):
+        v = record.get(k)
+        if v is not None and v != "":
+            md[k] = v
     for f in record.get("contributing_factors") or []:
         md[_factor_flag(f)] = True
     # Mirror the per-tag flag pattern for context tags so callers can filter

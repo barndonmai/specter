@@ -1,4 +1,4 @@
-.PHONY: install seed ingest tag load serve eval clean demo demo-realistic demo-big-ass-query browse sources authority schema visualize-entire-architecture-project chroma-viz mermaid organizer
+.PHONY: install seed ingest tag load serve eval clean demo demo-realistic demo-big-ass-query browse sources authority schema visualize-entire-architecture-project chroma-viz mermaid organizer caselaw-import
 
 export PYTHONPATH := .
 # Auto-prefer the project venv if it exists; otherwise fall back to system python3.
@@ -53,6 +53,17 @@ chroma-viz:
 # and live topic-flow. Open the .mmd files at https://mermaid.live.
 mermaid:
 	$(PY) scripts/mermaid.py all
+
+# Step 1: convert case_stressor JSON -> Specter records + real comparables CSV.
+# (Fast, no Voyage calls.)
+caselaw-import:
+	$(PY) scripts/import_case_stressor.py
+
+# Step 2: embed + load case-law records into Chroma.
+# Free-tier-safe: 8-doc batches with a 25-sec pause. ETA ~18 min on free tier,
+# ~30 sec with a Voyage card (set CASELAW_PAUSE_SEC=0 in .env).
+caselaw-load:
+	$(PY) scripts/load_caselaw.py
 
 # Run the Organizer on the Anaheim phantom-vehicle hypo end-to-end.
 organizer:

@@ -35,17 +35,19 @@ def _client() -> Anthropic:
 
 @lru_cache(maxsize=1)
 def load_comparables() -> list[dict[str, Any]]:
+    """Read data/comparables.csv. Real CanLII PI cases imported from case_stressor."""
     if not COMPARABLES_CSV.exists():
         return []
     rows: list[dict[str, Any]] = []
     for r in csv.DictReader(COMPARABLES_CSV.open()):
+        # settlement_amount may be float (e.g. 3243349.48); coerce safely.
         try:
-            r["settlement_amount"] = int(r.get("settlement_amount") or 0)
-        except ValueError:
+            r["settlement_amount"] = int(float(r.get("settlement_amount") or 0))
+        except (ValueError, TypeError):
             r["settlement_amount"] = 0
         try:
             r["year"] = int(r.get("year") or 0)
-        except ValueError:
+        except (ValueError, TypeError):
             r["year"] = 0
         rows.append(r)
     return rows
