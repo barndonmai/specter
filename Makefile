@@ -1,4 +1,4 @@
-.PHONY: install seed ingest tag load serve eval clean demo demo-realistic demo-big-ass-query browse sources authority
+.PHONY: install seed ingest tag load serve eval clean demo demo-realistic demo-big-ass-query browse sources authority schema visualize-entire-architecture-project chroma-viz mermaid
 
 export PYTHONPATH := .
 # Auto-prefer the project venv if it exists; otherwise fall back to system python3.
@@ -35,6 +35,24 @@ clean:
 # Interactive Chroma browser. View every record, every field, with keyboard nav.
 browse:
 	$(PY) scripts/browse.py
+
+# Print the ENTIRE schema: layers, fields, distributions, abstraction, endpoints.
+schema:
+	$(PY) scripts/schema.py
+
+# Visualize the WHOLE project architecture in one terminal-friendly pass.
+visualize-entire-architecture-project:
+	$(PY) scripts/architecture.py
+
+# Inspect the Chroma vector store itself: storage, vector health, topic clusters,
+# cross-topic similarity heatmap, per-state compactness, outliers.
+chroma-viz:
+	$(PY) scripts/chroma_viz.py
+
+# Generate Mermaid.js diagrams for ERD, architecture, user-flow, pipeline,
+# and live topic-flow. Open the .mmd files at https://mermaid.live.
+mermaid:
+	$(PY) scripts/mermaid.py all
 
 # Show the catalog of authoritative sources (kinds, jurisdictions, URLs).
 sources:

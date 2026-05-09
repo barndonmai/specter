@@ -1,0 +1,109 @@
+erDiagram
+    %% =========================================================
+    %% Specter logical schema (Chroma-backed, but modeled here as
+    %% if it were a relational store so an attorney can read it).
+    %% =========================================================
+
+    LEGAL_DOCUMENT {
+        string  id              PK "stable slug, e.g. ca-vc-23152-a"
+        string  citation        "Cal. Veh. Code § 23152(a)"
+        string  state_code      "CA"
+        string  jurisdiction_id FK
+        string  code            "Cal. Veh. Code"
+        string  section         "23152(a)"
+        string  title
+        string  text            "full statute language"
+        string  source_url      "REQUIRED — points at AUTHORITY_SOURCE"
+        string  document_type   "statute | case_law | regulation | guidance | dataset"
+        boolean pi_relevant
+        float   confidence      "0.0-1.0 — confidence on raw factor label"
+        string  authority_source_id FK
+        string  legal_topic_id  FK
+        float   topic_confidence "0.0-1.0 — confidence on legal_topic"
+        vector  embedding       "1024-dim Voyage law-2"
+    }
+
+    JURISDICTION {
+        string state_code   PK "CA, TX, FL, PA, IL, OH"
+        string name         "California, Texas, ..."
+        string country      "US"
+    }
+
+    LEGAL_TOPIC {
+        string id           PK "normalized key e.g. dui-related-behavior"
+        string label        "DUI-related behavior"
+        string description
+    }
+
+    CONTRIBUTING_FACTOR {
+        string id           PK "raw label e.g. DUI/DWI"
+        string label        "raw text from source CSV"
+        boolean canonical   "true = part of the official 17-cat schema"
+    }
+
+    DOCUMENT_TOPIC_LINK {
+        string id            PK
+        string document_id   FK
+        string topic_id      FK
+        float  confidence
+    }
+
+    DOCUMENT_FACTOR_LINK {
+        string id            PK
+        string document_id   FK
+        string factor_id     FK
+    }
+
+    AUTHORITY_SOURCE {
+        string id            PK "ca-leginfo, tx-statutes-capitol, courtlistener, ..."
+        string name
+        string kind          "primary_statute | case_law | bar_association | court_system | federal_dataset | federal_agency | state_agency"
+        string authority_tier "primary | secondary | tertiary"
+        string url
+        string state_code    FK
+        boolean is_official
+        string operator
+    }
+
+    AUTHORITY_ROUTE {
+        string id              PK
+        string need            "Find court opinions interpreting a statute"
+        string for_jurisdiction "ANY | California | Texas | ..."
+        string keywords        "[case, law, opinion, ...]"
+    }
+
+    ROUTE_SOURCE_LINK {
+        string id          PK
+        string route_id    FK
+        string source_id   FK
+        string tier        "primary | secondary"
+    }
+
+    TOPIC_AUTHORITY_ROUTE {
+        string id                       PK
+        string legal_topic_id           FK
+        string primary_statute_state    "JSON map state_code -> source_id"
+        string case_law_source_id       FK
+        string statistics_source_id     FK
+        string authority_note
+    }
+
+    %% --- relationships --------------------------------------------------
+
+    JURISDICTION       ||--o{ LEGAL_DOCUMENT          : "issues"
+    AUTHORITY_SOURCE   ||--o{ LEGAL_DOCUMENT          : "is the source for"
+    LEGAL_TOPIC        ||--o{ LEGAL_DOCUMENT          : "categorizes (denormalized)"
+
+    LEGAL_DOCUMENT     ||--o{ DOCUMENT_TOPIC_LINK     : "tagged with"
+    LEGAL_TOPIC        ||--o{ DOCUMENT_TOPIC_LINK     : "applies to"
+
+    LEGAL_DOCUMENT     ||--o{ DOCUMENT_FACTOR_LINK    : "raw-labeled with"
+    CONTRIBUTING_FACTOR||--o{ DOCUMENT_FACTOR_LINK    : "applied to"
+
+    JURISDICTION       ||--o{ AUTHORITY_SOURCE        : "publishes"
+
+    AUTHORITY_ROUTE    ||--o{ ROUTE_SOURCE_LINK       : "ranks"
+    AUTHORITY_SOURCE   ||--o{ ROUTE_SOURCE_LINK       : "appears in"
+
+    LEGAL_TOPIC        ||--o| TOPIC_AUTHORITY_ROUTE   : "has authority ladder"
+    AUTHORITY_SOURCE   ||--o{ TOPIC_AUTHORITY_ROUTE   : "referenced by ladder"

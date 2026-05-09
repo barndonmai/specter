@@ -1,0 +1,30 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#1e1e2e","lineColor":"#fab387"}} }%%
+sequenceDiagram
+    autonumber
+    actor U as 👤 Paralegal / Attorney
+    participant WA as WhatsApp
+    participant OC as OpenClaw agent
+    participant API as Specter API (FastAPI)
+    participant V as Voyage law-2
+    participant CH as Chroma vector DB
+    participant W as Authority wiki
+
+    U->>WA: "client got rear-ended by drunk driver in CA"
+    WA->>OC: deliver message
+    OC->>OC: pick skill (harvester-query)
+    OC->>API: POST /ask {question, state:"CA"}
+    API->>V: embed(query)  [RPM-limited, cached]
+    V-->>API: 1024-dim vector
+    API->>CH: query(vec, where={state:"CA"})
+    CH-->>API: top-K records (citation, text, source_url, legal_topic, score)
+
+    Note over API,W: optional: route to authoritative sources
+    API->>W: route_for_topic("DUI-related behavior", state="CA")
+    W-->>API: primary_statute + case_law + statistics + authority_note
+
+    API-->>OC: results (statutes + authority ladder)
+    OC->>OC: compose reply (every citation MUST carry a source URL)
+    OC-->>WA: "Three CA statutes apply: § 23152, § 23153, § 23152(c).<br/>Source: leginfo.legislature.ca.gov.<br/>Case-law workup → CourtListener."
+    WA-->>U: rendered message
+
+    Note over U,WA: round-trip ~300-800ms with Voyage card,<br/>longer on free 3 RPM tier
