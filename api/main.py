@@ -30,7 +30,40 @@ app = FastAPI(title="Specter Harvester API", version="0.2.0")
 @app.get("/healthz")
 def healthz():
     coll = chroma_store.get_collection()
-    return {"ok": True, "collection": coll.name, "count": coll.count()}
+    return {
+        "ok": True,
+        "collection": coll.name,
+        "count": coll.count(),
+        "canada_collection": "pi_cases",
+        "canada_count": chroma_store.canada_count(),
+    }
+
+
+# ---- Canada / case_stressor routing -----------------------------------
+
+CANADA_HINTS = (
+    "canada", "canadian", "ontario", "quebec", "british columbia", "bc",
+    "alberta", "manitoba", "saskatchewan", "nova scotia", "new brunswick",
+    "newfoundland", "yukon", "toronto", "montreal", "vancouver", "calgary",
+    "edmonton", "ottawa", "canlii", "onsc", "onca", "scc",
+)
+
+
+def _wants_canada(
+    *,
+    text: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
+    state: Optional[str] = None,
+) -> bool:
+    """Heuristic: does the user want the Canada / case_stressor collection?"""
+    if jurisdiction and jurisdiction.lower() in ("canada", "canadian"):
+        return True
+    if state and state.upper() in ("CA-CAN", "CAN"):
+        return True
+    if text:
+        t = text.lower()
+        return any(h in t for h in CANADA_HINTS)
+    return False
 
 
 @app.get("/factors")
@@ -103,10 +136,10 @@ def lookup(citation: str = Query(..., description="Exact citation, e.g. 'Cal. Ve
 @app.get("/search")
 def search(
     q: str = Query(..., description="Natural-language query"),
-    state: Optional[str] = Query(None, description="2-letter state code, e.g. CA"),
+    state: Optional[str] = Query(None, description="2-letter state code, e.g. CA. Use CA-CAN for Canada."),
     factor: Optional[str] = Query(None, description="Raw contributing factor (17-cat)"),
     legal_topic: Optional[str] = Query(None, description="Normalized legal topic (abstraction layer)"),
-    jurisdiction: Optional[str] = Query(None, description="Full jurisdiction name, e.g. California"),
+    jurisdiction: Optional[str] = Query(None, description="Full jurisdiction name. Use 'Canada' to route to the case_stressor collection."),
     document_type: Optional[str] = Query(None, description="statute | regulation | case_law | guidance | dataset"),
     authority_source: Optional[str] = Query(None, description="state_legislature | DMV | court_system | federal_agency"),
     min_topic_confidence: Optional[float] = Query(None, ge=0.0, le=1.0),
@@ -119,6 +152,20 @@ def search(
         raise HTTPException(400, f"unknown legal_topic: {legal_topic!r}. See /topics")
 
     qvec = embed([q], input_type="query")[0]
+
+    # ---- Routing: if the query is about Canada, hit the case_stressor DB.
+    use_canada = _wants_canada(text=q, jurisdiction=jurisdiction, state=state)
+    if use_canada:
+        results = chroma_store.canada_search(qvec, k=k)
+        return {
+            "query": q,
+            "collection": "canada_pi_cases",
+            "filters": {
+                "state": state, "jurisdiction": jurisdiction,
+            },
+            "results": results,
+        }
+
     results = chroma_store.search(
         qvec,
         state=state,
@@ -133,6 +180,7 @@ def search(
     )
     return {
         "query": q,
+        "collection": "specter_statutes",
         "filters": {
             "state": state,
             "factor": factor,
@@ -251,6 +299,12 @@ def ask(body: AskBody):
         raise HTTPException(400, f"unknown legal_topic: {body.legal_topic!r}. See /topics")
 
     qvec = embed([body.question], input_type="query")[0]
+
+    use_canada = _wants_canada(text=body.question, jurisdiction=body.jurisdiction, state=body.state)
+    if use_canada:
+        hits = chroma_store.canada_search(qvec, k=body.k)
+        return {"question": body.question, "collection": "canada_pi_cases", "hits": hits}
+
     hits = chroma_store.search(
         qvec,
         state=body.state,
@@ -263,4 +317,4 @@ def ask(body: AskBody):
         authority_source=body.authority_source,
         min_topic_confidence=body.min_topic_confidence,
     )
-    return {"question": body.question, "hits": hits}
+    return {"question": body.question, "collection": "specter_statutes", "hits": hits}

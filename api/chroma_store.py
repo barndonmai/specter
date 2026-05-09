@@ -17,8 +17,15 @@ from chromadb.config import Settings
 PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./.chroma")
 COLLECTION_NAME = os.getenv("CHROMA_COLLECTION", "specter_statutes")
 
+# Canada / case_stressor collection — lives in a separate Chroma persistent
+# directory so we never mix US statutes with Canadian PI case law in storage.
+CANADA_PERSIST_DIR = os.getenv("CANADA_PERSIST_DIR", "./case_stressor/chroma_db")
+CANADA_COLLECTION_NAME = os.getenv("CANADA_COLLECTION", "pi_cases")
+
 Path(PERSIST_DIR).mkdir(parents=True, exist_ok=True)
 _client = chromadb.PersistentClient(path=PERSIST_DIR, settings=Settings(anonymized_telemetry=False))
+
+_canada_client = None  # lazy
 
 
 def _factor_flag(name: str) -> str:
@@ -32,6 +39,29 @@ def get_collection():
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
     )
+
+
+def get_canada_collection():
+    """Lazy-open the case_stressor/chroma_db collection (PI case law).
+
+    Returns the chromadb Collection object directly, OR None if the
+    directory or collection isn't available (graceful degrade so the
+    main API keeps working even if the case_stressor branch isn't
+    pulled).
+    """
+    global _canada_client
+    p = Path(CANADA_PERSIST_DIR)
+    if not p.exists():
+        return None
+    if _canada_client is None:
+        _canada_client = chromadb.PersistentClient(
+            path=str(p),
+            settings=Settings(anonymized_telemetry=False),
+        )
+    try:
+        return _canada_client.get_collection(CANADA_COLLECTION_NAME)
+    except Exception:
+        return None
 
 
 def to_metadata(record: dict[str, Any]) -> dict[str, Any]:
@@ -155,3 +185,108 @@ def _row(res: dict[str, Any], i: int) -> dict[str, Any]:
         csv = out.get("context_tags_csv") or ""
         out["pi_context_tags"] = [t.strip() for t in csv.split(",") if t.strip()]
     return out
+
+
+# ----------------------------------------------------------------
+# Canada / case_stressor collection — separate Chroma DB, separate
+# metadata schema. We translate its native fields into something the
+# rest of the pipeline can render (citation, source_url, etc.).
+# ----------------------------------------------------------------
+
+def _canlii_url(citation: str | None) -> str:
+    if not citation:
+        return "https://www.canlii.org/"
+    return f"https://www.canlii.org/en/#search/text={citation.replace(' ', '+')}"
+
+
+def _canada_normalize(rec: dict[str, Any]) -> dict[str, Any]:
+    """Map a case_stressor metadata row to our standard response shape."""
+    return {
+        "id":                rec.get("id"),
+        "citation":          rec.get("citation") or "",
+        "title":             rec.get("case_name") or "",
+        "text":              rec.get("text") or rec.get("case_summary") or "",
+        "source_url":        _canlii_url(rec.get("citation")),
+
+        "jurisdiction":      "Canada",
+        "jurisdiction_norm": "Canada",
+        "state_code":        "CA-CAN",
+        "code":              rec.get("court") or "",
+        "section":           str(rec.get("year") or ""),
+        "document_type":     "case_law",
+        "authority_source":  "court_system",
+
+        "score":             rec.get("score"),
+
+        # PI-specific signal preserved for the Organizer
+        "plaintiff_won":           rec.get("plaintiff_won"),
+        "damages_awarded":         rec.get("damages_awarded"),
+        "injury_type":             rec.get("injury_type"),
+        "defendant_type":          rec.get("defendant_type"),
+        "deciding_factor":         rec.get("deciding_factor"),
+        "case_summary":            rec.get("case_summary"),
+        "contributory_negligence": rec.get("contributory_negligence_found"),
+        "plaintiff_age_group":     rec.get("plaintiff_age_group"),
+
+        "pi_relevant":      True,
+        "factors_csv":      "",
+        "legal_topic":      "general traffic violation",
+        "topic_confidence": float(rec.get("extraction_confidence") or 0.5),
+    }
+
+
+def canada_search(
+    query_embedding: list[float],
+    *,
+    k: int = 10,
+    min_damages: Optional[int] = None,
+    plaintiff_won_only: bool = False,
+    injury_substring: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    """Vector search over the Canada (case_stressor) collection.
+
+    Returns [] if the Canada DB isn't available (graceful degrade).
+    """
+    coll = get_canada_collection()
+    if coll is None:
+        return []
+
+    fetch = min(max(k * 4, 20), coll.count() or k)
+    res = coll.query(
+        query_embeddings=[query_embedding],
+        n_results=fetch,
+        include=["metadatas", "documents", "distances"],
+    )
+    if not res["ids"] or not res["ids"][0]:
+        return []
+
+    out: list[dict[str, Any]] = []
+    for i in range(len(res["ids"][0])):
+        meta = dict(res["metadatas"][0][i] or {})
+        meta["id"]    = res["ids"][0][i]
+        meta["text"]  = res["documents"][0][i]
+        meta["score"] = 1.0 - float(res["distances"][0][i])
+        norm = _canada_normalize(meta)
+
+        if min_damages is not None:
+            try:
+                if (norm.get("damages_awarded") or 0) < int(min_damages):
+                    continue
+            except (TypeError, ValueError):
+                continue
+        if plaintiff_won_only and not norm.get("plaintiff_won"):
+            continue
+        if injury_substring:
+            inj = (norm.get("injury_type") or "").lower()
+            if injury_substring.lower() not in inj:
+                continue
+
+        out.append(norm)
+        if len(out) >= k:
+            break
+    return out
+
+
+def canada_count() -> int:
+    coll = get_canada_collection()
+    return coll.count() if coll else 0
