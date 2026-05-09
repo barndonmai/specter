@@ -1,14 +1,22 @@
 ---
 name: harvester-query
-description: Use whenever the user asks about a motor-vehicle statute, citation, contributing factor, or general "what does the law say about X" — query Specter's Harvester API instead of relying on model knowledge.
+description: Use whenever the user asks about a motor-vehicle statute, citation, contributing factor, OR a Canadian personal-injury fact pattern — always query Specter's Harvester API before answering. The API auto-routes between two collections (US statutes + Canadian PI case law).
 ---
 
 # harvester-query
 
-Specter's source of truth is the Harvester — a FastAPI service over a Chroma vector store of tagged motor-vehicle statutes. **Every citation the user sees should come from the Harvester (or, on miss, from a verified web source). Never fabricate.**
+Specter's Harvester is a FastAPI service that fronts **two Chroma collections**:
+
+| Collection | Contents | When the API uses it |
+|---|---|---|
+| `specter_statutes` | 384 US motor-vehicle statutes (CA, TX, FL, PA, IL, OH) | default — any US-jurisdiction or generic query |
+| `canada_pi_cases`  | 340 real Canadian PI cases (CanLII, with damages, injury type, plaintiff_won, deciding_factor) | auto-routed when the query mentions Canada / Ontario / Quebec / Toronto / ONSC / ONCA / canlii / etc., or when `?jurisdiction=Canada` or `?state=CA-CAN` is passed |
+
+**Every citation the user sees should come from the Harvester (or, on miss, from a verified web source). Never fabricate.**
 
 ## When to use this skill
 
+- **Always for fact patterns mentioning Canada or a Canadian province / city.** The Canada collection is indexed on *facts of decided cases*, so messy fact patterns ("child got hurt outside Target in Ontario", "slip and fall on icy sidewalk in Toronto") are EXACTLY what it's good at. Run `search` first; ask follow-ups only after showing what hit.
 - User asks for a specific citation: *"what's Cal. Veh. Code § 23152(a)?"* → `lookup_citation`
 - User asks a semantic / topical question: *"DUI statutes in California"*, *"laws about texting while driving"* → `search`
 - User asks an open question and you want top-k candidates: *"any state with a hit-and-run analog to CVC 20001?"* → `ask`
@@ -16,9 +24,13 @@ Specter's source of truth is the Harvester — a FastAPI service over a Chroma v
 
 ## When NOT to use it
 
-- Pure procedural / case-strategy questions ("how do I file?") — the Harvester only holds statutes.
+- Pure procedural / case-strategy questions ("how do I file?") — the Harvester only holds statutes (US) and case law (Canada).
 - Greetings, identity questions, persona check-ins — answer in voice without calling the API.
 - Questions that don't require a citation (Specter can answer general PI-law-shape questions briefly without one, but **must not invent a citation** to back them up).
+
+## Important: don't gate behind clarification
+
+For Canadian fact-pattern queries especially, **call `search` first with whatever the user said, even if it's vague**. Show the top hits, THEN ask any follow-ups. The Canada corpus is fact-pattern-indexed — thin queries still return relevant cases. Demanding more facts before searching wastes the corpus.
 
 ## How to call
 
