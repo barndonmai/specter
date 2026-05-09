@@ -83,6 +83,11 @@ def search(
     factor: Optional[str] = None,
     pi_only: bool = False,
     k: int = 10,
+    legal_topic: Optional[str] = None,
+    jurisdiction: Optional[str] = None,
+    document_type: Optional[str] = None,
+    authority_source: Optional[str] = None,
+    min_topic_confidence: Optional[float] = None,
 ) -> list[dict[str, Any]]:
     coll = get_collection()
     where: dict[str, Any] = {}
@@ -92,6 +97,16 @@ def search(
         where[_factor_flag(factor)] = True
     if pi_only:
         where["pi_relevant"] = True
+    if legal_topic:
+        where["legal_topic"] = legal_topic
+    if jurisdiction:
+        where["jurisdiction_norm"] = jurisdiction
+    if document_type:
+        where["document_type"] = document_type
+    if authority_source:
+        where["authority_source"] = authority_source
+    if min_topic_confidence is not None:
+        where["topic_confidence"] = {"$gte": float(min_topic_confidence)}
 
     # Chroma wants $and when there are multiple keys
     if len(where) > 1:

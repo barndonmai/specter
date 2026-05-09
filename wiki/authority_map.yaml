@@ -1,0 +1,192 @@
+# Authority routing map.
+#
+# Answers the question: "I have a question about X in Y — where do I look first?"
+#
+# This is the actual "authoritative wiki" deliverable. The list of sources in
+# `sources.yaml` is the catalog. THIS file is the routing table that says
+# "for THIS kind of question, THESE sources are authoritative, in this order."
+
+# Each entry: a research need, and the recommended source ladder.
+# `for_jurisdiction: ANY` means the rule applies everywhere; specific state
+# codes override.
+
+routes:
+
+  # ------------------------- statute lookups -------------------------
+
+  - need: "Find the exact current text of a state vehicle/traffic statute"
+    for_jurisdiction: California
+    primary:    [ca-leginfo]
+    secondary:  [cornell-lii, justia]
+    why: |
+      The state legislature's own database is the authoritative current text.
+      Cornell LII and Justia are useful for cross-state comparison but should
+      always be backfilled with the primary source URL for citation.
+
+  - need: "Find the exact current text of a state vehicle/traffic statute"
+    for_jurisdiction: Texas
+    primary:    [tx-statutes-capitol]
+    secondary:  [cornell-lii, justia]
+
+  - need: "Find the exact current text of a state vehicle/traffic statute"
+    for_jurisdiction: Florida
+    primary:    [fl-senate-statutes]
+    secondary:  [cornell-lii, justia]
+
+  - need: "Find the exact current text of a state vehicle/traffic statute"
+    for_jurisdiction: Pennsylvania
+    primary:    [pa-legis-state]
+    secondary:  [cornell-lii, justia]
+
+  # ------------------------- case law -------------------------
+
+  - need: "Find court opinions interpreting a specific statute"
+    keywords: [case, law, opinion, opinions, court, interpret, precedent]
+    for_jurisdiction: ANY
+    primary:    [courtlistener]
+    secondary:  [google-scholar-cases]
+    why: |
+      CourtListener has a free API and full opinion text. Google Scholar is
+      a good fallback for older / state-court coverage. For a paying firm,
+      Westlaw or Lexis would supersede both, but for free-tier research these
+      two are the authoritative starting points.
+
+  # ------------------------- procedure / court rules -------------------------
+
+  - need: "Find court procedural rules / forms for filing a PI complaint"
+    keywords: [court, rules, procedure, filing, forms, complaint]
+    for_jurisdiction: California
+    primary:    [ca-courts]
+    why: "Judicial Council of California publishes the Rules of Court."
+
+  - need: "Find court procedural rules / forms for filing a PI complaint"
+    keywords: [court, rules, procedure, filing, forms, complaint]
+    for_jurisdiction: Texas
+    primary:    [tx-courts]
+
+  # ------------------------- ethics & professional conduct -------------------------
+
+  - need: "Find ethics rules, professional conduct, or attorney discipline records"
+    keywords: [ethics, conduct, discipline, bar, professional]
+    for_jurisdiction: California
+    primary:    [cal-bar]
+
+  - need: "Find ethics rules, professional conduct, or attorney discipline records"
+    keywords: [ethics, conduct, discipline, bar, professional]
+    for_jurisdiction: Texas
+    primary:    [tx-bar]
+
+  - need: "Find ethics rules, professional conduct, or attorney discipline records"
+    keywords: [ethics, conduct, discipline, bar, professional]
+    for_jurisdiction: Florida
+    primary:    [fl-bar]
+
+  - need: "Find ethics rules, professional conduct, or attorney discipline records"
+    keywords: [ethics, conduct, discipline, bar, professional]
+    for_jurisdiction: Pennsylvania
+    primary:    [pa-bar]
+
+  # ------------------------- damages framing / statistics -------------------------
+
+  - need: "Get fatal-crash statistics for damages or causation framing"
+    keywords: [damages, statistics, crash, fatal, fatality, causation, expert]
+    for_jurisdiction: ANY
+    primary:    [nhtsa-fars, nhtsa-cdan]
+    why: "FARS is the canonical federal fatal-crash dataset, used in expert reports."
+
+  - need: "Get injury statistics or cost-of-injury data for damages framing"
+    keywords: [damages, injury, cost, statistics, medical]
+    for_jurisdiction: ANY
+    primary:    [cdc-wisqars]
+
+  # ------------------------- commercial / workplace -------------------------
+
+  - need: "Find safety regulations for commercial vehicle or workplace contexts"
+    keywords: [safety, regulation, commercial, truck, workplace, OSHA]
+    for_jurisdiction: ANY
+    primary:    [osha]
+    why: "OSHA standards reach commercial drivers and trucking operators."
+
+  # ------------------------- DMV / licensing -------------------------
+
+  - need: "Verify license status, registration, or DMV procedure"
+    for_jurisdiction: California
+    primary:    [ca-dmv]
+
+  - need: "Verify license status, registration, or DMV procedure"
+    for_jurisdiction: Texas
+    primary:    [tx-dps]
+
+  - need: "Verify license status, registration, or DMV procedure"
+    for_jurisdiction: Florida
+    primary:    [fl-flhsmv]
+
+  - need: "Verify license status, registration, or DMV procedure"
+    for_jurisdiction: Pennsylvania
+    primary:    [pa-penndot]
+
+
+# ------------------------------------------------------------------
+# Topic-specific routing.
+# Maps our normalized `legal_topic` (from tagger/enrich.py) to the
+# authoritative source ladder.
+# ------------------------------------------------------------------
+
+topic_routes:
+
+  - legal_topic: "DUI-related behavior"
+    description: "Driving under the influence of alcohol or drugs"
+    primary_statute_per_state:
+      CA: ca-leginfo
+      TX: tx-statutes-capitol
+      FL: fl-senate-statutes
+      PA: pa-legis-state
+    case_law: courtlistener
+    statistics: nhtsa-fars
+    authority_note: |
+      For DUI questions, always start with the state's primary statute database.
+      Federal data (NHTSA FARS) is authoritative for *statistics* but not for
+      the *law itself*.
+
+  - legal_topic: "speeding"
+    description: "Speed limit violations including 'unsafe speed for conditions'"
+    primary_statute_per_state:
+      CA: ca-leginfo
+      TX: tx-statutes-capitol
+      FL: fl-senate-statutes
+      PA: pa-legis-state
+    case_law: courtlistener
+    statistics: nhtsa-fars
+
+  - legal_topic: "distracted driving"
+    description: "Texting, phone use, and other distraction-based violations"
+    primary_statute_per_state:
+      CA: ca-leginfo
+      TX: tx-statutes-capitol
+      FL: fl-senate-statutes
+      PA: pa-legis-state
+    case_law: courtlistener
+    statistics: nhtsa-fars
+
+  - legal_topic: "hit and run"
+    description: "Fleeing the scene of a collision"
+    primary_statute_per_state:
+      CA: ca-leginfo
+      TX: tx-statutes-capitol
+      FL: fl-senate-statutes
+      PA: pa-legis-state
+    case_law: courtlistener
+    statistics: nhtsa-cdan
+    authority_note: |
+      Hit-and-run statutes are nearly always state criminal/vehicle-code
+      provisions. Federal sources are NOT authoritative here \u2014 stay state.
+
+  - legal_topic: "reckless driving"
+    description: "Willful or wanton disregard for safety while driving"
+    primary_statute_per_state:
+      CA: ca-leginfo
+      TX: tx-statutes-capitol
+      FL: fl-senate-statutes
+      PA: pa-legis-state
+    case_law: courtlistener
+    statistics: nhtsa-fars

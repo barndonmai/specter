@@ -1,0 +1,336 @@
+# Specter Authoritative-Source Wiki
+#
+# A curated registry of online sources that are AUTHORITATIVE for U.S. motor
+# vehicle / personal injury law research. Each entry says:
+#   - what kind of source it is
+#   - what jurisdiction it covers
+#   - what KINDS OF QUESTIONS it answers (so a paralegal knows where to look)
+#   - the official URL (so judges can verify)
+#
+# Every record in our Chroma DB carries a `source_url` that resolves back to
+# one of these entries. This is the "authoritative-sources wiki" called out in
+# the hackathon brief as a bonus deliverable.
+
+sources:
+
+  # --- PRIMARY STATUTE SOURCES (state legislatures) ---
+
+  - id: ca-leginfo
+    name: California Legislative Information
+    kind: primary_statute
+    authority_tier: primary
+    jurisdiction: California
+    state_code: CA
+    url: https://leginfo.legislature.ca.gov/
+    covers:
+      - California Vehicle Code (VEH)
+      - California Civil Code
+      - All California statutes
+    answers:
+      - "What is the exact text of CA Vehicle Code § 23152?"
+      - "What is the current California DUI statute?"
+    operator: California State Legislature
+    is_official: true
+    notes: |
+      Authoritative for current California statutory law. Text matches
+      the official California codes. Public domain (state government).
+
+  - id: tx-statutes-capitol
+    name: Texas Statutes (Capitol)
+    kind: primary_statute
+    authority_tier: primary
+    jurisdiction: Texas
+    state_code: TX
+    url: https://statutes.capitol.texas.gov/
+    covers:
+      - Texas Transportation Code
+      - Texas Penal Code
+      - All Texas codes
+    answers:
+      - "What does Texas Transportation Code § 545.351 say?"
+      - "What is Texas's DWI statute?"
+    operator: Texas Legislative Council
+    is_official: true
+
+  - id: fl-senate-statutes
+    name: The Florida Senate — Florida Statutes
+    kind: primary_statute
+    authority_tier: primary
+    jurisdiction: Florida
+    state_code: FL
+    url: https://www.flsenate.gov/Laws/Statutes/
+    covers:
+      - Florida Statutes Title XXIII (Motor Vehicles)
+      - Florida Statutes Chapter 316 (State Uniform Traffic Control)
+    answers:
+      - "What does Fla. Stat. § 316.193 (DUI) require?"
+      - "What is Florida's reckless driving statute?"
+    operator: The Florida Senate
+    is_official: true
+
+  - id: pa-legis-state
+    name: Pennsylvania General Assembly — Consolidated Statutes
+    kind: primary_statute
+    authority_tier: primary
+    jurisdiction: Pennsylvania
+    state_code: PA
+    url: https://www.legis.state.pa.us/
+    covers:
+      - 75 Pa. C.S. (Vehicles)
+    answers:
+      - "What does 75 Pa. C.S. § 3361 say about safe speeds?"
+      - "What is Pennsylvania's reckless driving statute?"
+    operator: Pennsylvania General Assembly
+    is_official: true
+
+  # --- AGGREGATORS (secondary, but uniform parsing across states) ---
+
+  - id: cornell-lii
+    name: Cornell Legal Information Institute (LII)
+    kind: primary_statute
+    authority_tier: secondary
+    jurisdiction: National
+    state_code: null
+    url: https://www.law.cornell.edu/
+    covers:
+      - All US state and federal statutes (aggregated)
+      - U.S. Code
+      - Code of Federal Regulations
+    answers:
+      - "Where can I find a single uniformly-parsed view of state codes?"
+      - "What is the federal regulation analog to a state statute?"
+    operator: Cornell Law School
+    is_official: false
+    notes: |
+      Free, educational, well-cited. Always backfill the primary state
+      source URL for actual citation in court.
+
+  - id: justia
+    name: Justia US Law
+    kind: primary_statute
+    authority_tier: secondary
+    jurisdiction: National
+    state_code: null
+    url: https://law.justia.com/codes/
+    covers:
+      - All 50 state codes (aggregated)
+      - Federal regulations
+      - Case law summaries
+    answers:
+      - "Where can I see this state's full traffic code in one place?"
+    operator: Justia
+    is_official: false
+
+  # --- CASE LAW ---
+
+  - id: courtlistener
+    name: CourtListener (Free Law Project)
+    kind: case_law
+    authority_tier: primary
+    jurisdiction: National
+    state_code: null
+    url: https://www.courtlistener.com/
+    covers:
+      - U.S. federal opinions
+      - State appellate opinions
+      - Supreme Court opinions
+      - PACER docket information
+    answers:
+      - "Has any court interpreted Cal. Veh. Code § 23152(a)?"
+      - "What case law exists on negligence per se under § 22350?"
+    operator: Free Law Project
+    is_official: true
+    notes: |
+      Has a free REST API (v4). Excellent for full-text opinion search.
+
+  - id: google-scholar-cases
+    name: Google Scholar — Case Law
+    kind: case_law
+    authority_tier: secondary
+    jurisdiction: National
+    state_code: null
+    url: https://scholar.google.com/
+    covers:
+      - U.S. federal and state cases (broad)
+    answers:
+      - "Has any court cited this statute?"
+    operator: Google
+    is_official: false
+
+  # --- COURT SYSTEM (for procedure, rules, local court info) ---
+
+  - id: ca-courts
+    name: California Courts
+    kind: court_system
+    authority_tier: primary
+    jurisdiction: California
+    state_code: CA
+    url: https://www.courts.ca.gov/
+    covers:
+      - California Rules of Court
+      - Court forms
+      - California civil procedure
+    answers:
+      - "What are CA's court rules for filing a personal injury complaint?"
+    operator: Judicial Council of California
+    is_official: true
+
+  - id: tx-courts
+    name: Texas Judicial Branch
+    kind: court_system
+    authority_tier: primary
+    jurisdiction: Texas
+    state_code: TX
+    url: https://www.txcourts.gov/
+    operator: Office of Court Administration of Texas
+    covers:
+      - Texas Rules of Civil Procedure
+      - Court forms
+    is_official: true
+
+  # --- BAR ASSOCIATIONS (ethics, conduct, attorney discipline) ---
+
+  - id: cal-bar
+    name: State Bar of California
+    kind: bar_association
+    authority_tier: primary
+    jurisdiction: California
+    state_code: CA
+    url: https://www.calbar.ca.gov/
+    covers:
+      - California Rules of Professional Conduct
+      - Attorney discipline records
+    answers:
+      - "What are CA's professional conduct rules for soliciting PI clients?"
+    operator: State Bar of California
+    is_official: true
+
+  - id: tx-bar
+    name: State Bar of Texas
+    kind: bar_association
+    authority_tier: primary
+    jurisdiction: Texas
+    state_code: TX
+    url: https://www.texasbar.com/
+    operator: State Bar of Texas
+    is_official: true
+
+  - id: fl-bar
+    name: The Florida Bar
+    kind: bar_association
+    authority_tier: primary
+    jurisdiction: Florida
+    state_code: FL
+    url: https://www.floridabar.org/
+    operator: The Florida Bar
+    is_official: true
+
+  - id: pa-bar
+    name: Pennsylvania Bar Association
+    kind: bar_association
+    authority_tier: primary
+    jurisdiction: Pennsylvania
+    state_code: PA
+    url: https://www.pabar.org/
+    operator: Pennsylvania Bar Association
+    is_official: true
+
+  # --- FEDERAL AGENCIES (for crash data, regulations, guidance) ---
+
+  - id: nhtsa-fars
+    name: NHTSA Fatality Analysis Reporting System (FARS)
+    kind: federal_dataset
+    authority_tier: primary
+    jurisdiction: Federal
+    state_code: null
+    url: https://www.nhtsa.gov/research-data/fatality-analysis-reporting-system-fars
+    covers:
+      - National fatal-crash dataset
+      - State-by-state fatality breakdowns
+    answers:
+      - "How many fatal crashes in California involved alcohol last year?"
+      - "What is the fatality rate for distracted driving nationally?"
+    operator: U.S. Department of Transportation / NHTSA
+    is_official: true
+
+  - id: nhtsa-cdan
+    name: NHTSA Crash Data Analysis (CDAN / FARS / CRSS)
+    kind: federal_dataset
+    authority_tier: primary
+    jurisdiction: Federal
+    state_code: null
+    url: https://crashstats.nhtsa.dot.gov/
+    operator: NHTSA
+    is_official: true
+
+  - id: cdc-wisqars
+    name: CDC WISQARS — Web-based Injury Statistics Query and Reporting System
+    kind: federal_dataset
+    authority_tier: primary
+    jurisdiction: Federal
+    state_code: null
+    url: https://www.cdc.gov/injury/wisqars/
+    covers:
+      - National injury and mortality stats
+      - Cost-of-injury data (useful for damages framing)
+    answers:
+      - "What is the average lifetime cost of a moderate brain injury?"
+    operator: U.S. Centers for Disease Control and Prevention
+    is_official: true
+
+  - id: osha
+    name: U.S. Department of Labor — OSHA
+    kind: federal_agency
+    authority_tier: primary
+    jurisdiction: Federal
+    state_code: null
+    url: https://www.osha.gov/
+    covers:
+      - Workplace safety regulations
+      - Commercial vehicle safety guidance
+    answers:
+      - "What OSHA standards apply to commercial truck drivers?"
+    operator: Occupational Safety and Health Administration
+    is_official: true
+
+  # --- DMVs (state-level vehicle / licensing authority) ---
+
+  - id: ca-dmv
+    name: California Department of Motor Vehicles
+    kind: state_agency
+    authority_tier: primary
+    jurisdiction: California
+    state_code: CA
+    url: https://www.dmv.ca.gov/
+    operator: California DMV
+    is_official: true
+
+  - id: tx-dps
+    name: Texas Department of Public Safety / DMV
+    kind: state_agency
+    authority_tier: primary
+    jurisdiction: Texas
+    state_code: TX
+    url: https://www.dps.texas.gov/
+    operator: Texas DPS
+    is_official: true
+
+  - id: fl-flhsmv
+    name: Florida Highway Safety and Motor Vehicles
+    kind: state_agency
+    authority_tier: primary
+    jurisdiction: Florida
+    state_code: FL
+    url: https://www.flhsmv.gov/
+    operator: Florida HSMV
+    is_official: true
+
+  - id: pa-penndot
+    name: Pennsylvania Department of Transportation
+    kind: state_agency
+    authority_tier: primary
+    jurisdiction: Pennsylvania
+    state_code: PA
+    url: https://www.penndot.pa.gov/
+    operator: PennDOT
+    is_official: true

@@ -4,9 +4,10 @@ Specter HTTP API. Lock this contract early — every other track depends on it.
 Endpoints:
     GET  /healthz
     GET  /lookup?citation=...
-    GET  /search?q=...&state=CA&factor=DUI/DWI&k=10&pi_only=true
+    GET  /search?q=...&state=CA&factor=DUI/DWI&legal_topic=speeding&k=10
     POST /ask        { "question": "..." }   # vector search wrapper for chat agents
-    GET  /factors    # list the 17 categories (handy for the UI)
+    GET  /factors    # list the 17 raw contributing-factor categories
+    GET  /topics     # list the normalized legal_topic abstraction layer
 """
 from __future__ import annotations
 from typing import Optional
@@ -15,12 +16,14 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from harvester.schema import CONTRIBUTING_FACTORS
+from tagger.enrich import LEGAL_TOPICS
 from api.voyage_embed import embed
 from api import chroma_store
+import wiki as authority_wiki
 
 load_dotenv()
 
-app = FastAPI(title="Specter Harvester API", version="0.1.0")
+app = FastAPI(title="Specter Harvester API", version="0.2.0")
 
 
 @app.get("/healthz")
@@ -31,7 +34,61 @@ def healthz():
 
 @app.get("/factors")
 def factors():
+    """Raw contributing-factor schema from the released CSV."""
     return {"factors": CONTRIBUTING_FACTORS}
+
+
+@app.get("/topics")
+def topics():
+    """Normalized legal-reasoning topics — the semantic abstraction layer."""
+    return {"topics": LEGAL_TOPICS}
+
+
+@app.get("/sources")
+def sources(
+    state: Optional[str] = Query(None, description="2-letter state code, e.g. CA"),
+    kind: Optional[str] = Query(None, description="primary_statute | case_law | bar_association | court_system | federal_dataset | federal_agency | state_agency"),
+):
+    """Catalog of every authoritative source we trust."""
+    items = authority_wiki.load_sources()
+    if state:
+        items = [s for s in items if (s.get("state_code") or "").upper() == state.upper()]
+    if kind:
+        items = [s for s in items if s.get("kind") == kind]
+    return {
+        "count": len(items),
+        "kinds": authority_wiki.kinds(),
+        "jurisdictions": authority_wiki.jurisdictions(),
+        "sources": items,
+    }
+
+
+@app.get("/authority")
+def authority(
+    need: Optional[str] = Query(None, description="Substring match of a research need (e.g. 'case law', 'damages', 'court rules')"),
+    legal_topic: Optional[str] = Query(None, description="Look up the authority ladder for one of our normalized topics"),
+    jurisdiction: Optional[str] = Query(None, description="Full state name (California, Texas, ...)"),
+    state: Optional[str] = Query(None, description="2-letter state code (CA, TX, ...) for topic routes"),
+):
+    """
+    "Which sources are authoritative for what." The wiki's actual answer.
+
+    - Pass `need` to find sources by research-need substring
+      (e.g. need="case law", need="damages", need="court rules")
+    - Pass `legal_topic` to get the full source ladder for a topic
+      (e.g. legal_topic="DUI-related behavior" + state=CA)
+    """
+    if legal_topic:
+        route = authority_wiki.route_for_topic(legal_topic, jurisdiction=jurisdiction, state_code=state)
+        if not route:
+            raise HTTPException(404, f"no authority route for legal_topic: {legal_topic!r}")
+        return route
+    if need is not None:
+        return {"routes": authority_wiki.route_for_need(need, jurisdiction=jurisdiction)}
+    # Default: return the table of all routes.
+    return {
+        "routes": authority_wiki.route_for_need("", jurisdiction=jurisdiction),
+    }
 
 
 @app.get("/lookup")
@@ -45,18 +102,47 @@ def lookup(citation: str = Query(..., description="Exact citation, e.g. 'Cal. Ve
 @app.get("/search")
 def search(
     q: str = Query(..., description="Natural-language query"),
-    state: Optional[str] = None,
-    factor: Optional[str] = None,
+    state: Optional[str] = Query(None, description="2-letter state code, e.g. CA"),
+    factor: Optional[str] = Query(None, description="Raw contributing factor (17-cat)"),
+    legal_topic: Optional[str] = Query(None, description="Normalized legal topic (abstraction layer)"),
+    jurisdiction: Optional[str] = Query(None, description="Full jurisdiction name, e.g. California"),
+    document_type: Optional[str] = Query(None, description="statute | regulation | case_law | guidance | dataset"),
+    authority_source: Optional[str] = Query(None, description="state_legislature | DMV | court_system | federal_agency"),
+    min_topic_confidence: Optional[float] = Query(None, ge=0.0, le=1.0),
     pi_only: bool = False,
     k: int = 10,
 ):
     if factor and factor not in CONTRIBUTING_FACTORS:
         raise HTTPException(400, f"unknown factor: {factor!r}. See /factors")
+    if legal_topic and legal_topic not in LEGAL_TOPICS:
+        raise HTTPException(400, f"unknown legal_topic: {legal_topic!r}. See /topics")
+
     qvec = embed([q], input_type="query")[0]
+    results = chroma_store.search(
+        qvec,
+        state=state,
+        factor=factor,
+        pi_only=pi_only,
+        k=k,
+        legal_topic=legal_topic,
+        jurisdiction=jurisdiction,
+        document_type=document_type,
+        authority_source=authority_source,
+        min_topic_confidence=min_topic_confidence,
+    )
     return {
         "query": q,
-        "filters": {"state": state, "factor": factor, "pi_only": pi_only},
-        "results": chroma_store.search(qvec, state=state, factor=factor, pi_only=pi_only, k=k),
+        "filters": {
+            "state": state,
+            "factor": factor,
+            "legal_topic": legal_topic,
+            "jurisdiction": jurisdiction,
+            "document_type": document_type,
+            "authority_source": authority_source,
+            "min_topic_confidence": min_topic_confidence,
+            "pi_only": pi_only,
+        },
+        "results": results,
     }
 
 
@@ -64,11 +150,33 @@ class AskBody(BaseModel):
     question: str
     state: Optional[str] = None
     factor: Optional[str] = None
+    legal_topic: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    document_type: Optional[str] = None
+    authority_source: Optional[str] = None
+    min_topic_confidence: Optional[float] = None
+    pi_only: bool = False
     k: int = 8
 
 
 @app.post("/ask")
 def ask(body: AskBody):
+    if body.factor and body.factor not in CONTRIBUTING_FACTORS:
+        raise HTTPException(400, f"unknown factor: {body.factor!r}. See /factors")
+    if body.legal_topic and body.legal_topic not in LEGAL_TOPICS:
+        raise HTTPException(400, f"unknown legal_topic: {body.legal_topic!r}. See /topics")
+
     qvec = embed([body.question], input_type="query")[0]
-    hits = chroma_store.search(qvec, state=body.state, factor=body.factor, k=body.k)
+    hits = chroma_store.search(
+        qvec,
+        state=body.state,
+        factor=body.factor,
+        pi_only=body.pi_only,
+        k=body.k,
+        legal_topic=body.legal_topic,
+        jurisdiction=body.jurisdiction,
+        document_type=body.document_type,
+        authority_source=body.authority_source,
+        min_topic_confidence=body.min_topic_confidence,
+    )
     return {"question": body.question, "hits": hits}

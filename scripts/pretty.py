@@ -96,10 +96,68 @@ def render_health(data: dict) -> None:
 
 
 def render_factors(data: dict) -> None:
-    header("CONTRIBUTING FACTORS  (17)")
+    header("CONTRIBUTING FACTORS  (raw, 17-cat schema)")
     factors = data.get("factors", [])
     for f in factors:
         print(f"  {c(MAGENTA, '•')} {f}")
+
+
+def render_topics(data: dict) -> None:
+    header("LEGAL TOPICS  (normalized semantic abstraction)")
+    topics = data.get("topics", [])
+    for t in topics:
+        print(f"  {c(BLUE, '•')} {t}")
+
+
+KIND_COLOR = {
+    "primary_statute":  GREEN,
+    "case_law":         CYAN,
+    "bar_association":  MAGENTA,
+    "court_system":     YELLOW,
+    "federal_dataset":  BLUE,
+    "federal_agency":   BLUE,
+    "state_agency":     YELLOW,
+}
+
+TIER_BADGE = {
+    "primary":   c(GREEN, "● primary  "),
+    "secondary": c(YELLOW, "● secondary"),
+    "tertiary":  c(GREY, "● tertiary "),
+}
+
+
+def render_sources(data: dict) -> None:
+    header(f"AUTHORITATIVE-SOURCE WIKI  ({data.get('count', 0)} sources)")
+    print(c(DIM, f"  Kinds:        {', '.join(data.get('kinds', []))}"))
+    print(c(DIM, f"  Jurisdictions: {', '.join(data.get('jurisdictions', []))}"))
+    print()
+
+    # Group by kind
+    from collections import defaultdict
+    by_kind: dict[str, list[dict]] = defaultdict(list)
+    for s in data.get("sources", []):
+        by_kind[s.get("kind", "other")].append(s)
+
+    for kind in sorted(by_kind.keys()):
+        kc = KIND_COLOR.get(kind, BOLD)
+        print(c(kc + BOLD, f"── {kind} ({len(by_kind[kind])}) "))
+        for s in by_kind[kind]:
+            tier = TIER_BADGE.get(s.get("authority_tier", ""), "")
+            jur = s.get("jurisdiction") or "—"
+            official = c(GREEN, "✓ official") if s.get("is_official") else c(GREY, "  unofficial")
+            print(f"  {tier}  {c(BOLD, s['name'])}  {c(DIM, '[' + jur + ']')}  {official}")
+            print(f"             {c(GREY + UND, s['url'])}")
+            covers = s.get("covers") or []
+            if covers:
+                for cov in covers[:3]:
+                    print(f"             {c(DIM, '• ' + cov)}")
+            answers = s.get("answers") or []
+            if answers:
+                print(f"             {c(MAGENTA, 'answers:')}")
+                for a in answers[:2]:
+                    line = '  "' + a + '"'
+                    print(f"             {c(DIM, line)}")
+            print()
 
 
 def render_record(rec: dict, idx: int | None = None) -> None:
@@ -120,8 +178,23 @@ def render_record(rec: dict, idx: int | None = None) -> None:
         line1 += "  " + c(DIM, title)
     print(line1)
 
+    legal_topic = rec.get("legal_topic")
+    topic_conf  = rec.get("topic_confidence")
+    doc_type    = rec.get("document_type")
+    auth        = rec.get("authority_source")
+
+    if legal_topic:
+        tc = f"  {c(DIM, f'(conf {topic_conf:.2f})')}" if topic_conf is not None else ""
+        print(f"     {c(BLUE, 'topic  ')}  {c(BOLD, legal_topic)}{tc}")
     if factors:
         print(f"     {c(MAGENTA, 'factors')}  {factors}")
+    if doc_type or auth:
+        bits = []
+        if doc_type:
+            bits.append(f"{c(DIM, 'type=')}{doc_type}")
+        if auth:
+            bits.append(f"{c(DIM, 'auth=')}{auth}")
+        print(f"     {c(MAGENTA, 'meta   ')}  {'   '.join(bits)}")
     if score is not None:
         print(f"     {c(MAGENTA, 'score  ')}  {score_bar(score)}")
     if pi is True:
@@ -179,6 +252,91 @@ def cmd_factors(_args):
     render_factors(r)
 
 
+def cmd_topics(_args):
+    r = httpx.get(f"{API}/topics", timeout=10).json()
+    render_topics(r)
+
+
+def cmd_sources(args):
+    params = {}
+    if args.state:
+        params["state"] = args.state
+    if args.kind:
+        params["kind"] = args.kind
+    r = httpx.get(f"{API}/sources", params=params, timeout=10).json()
+    render_sources(r)
+
+
+def _print_source_brief(s: dict, indent: str = "") -> None:
+    if not s:
+        return
+    tier = TIER_BADGE.get(s.get("authority_tier", ""), "")
+    print(f"{indent}{tier}  {c(BOLD, s['name'])}  {c(DIM, '[' + s.get('kind','') + ']')}")
+    print(f"{indent}              {c(GREY + UND, s['url'])}")
+
+
+def cmd_authority(args):
+    params = {}
+    if args.legal_topic:
+        params["legal_topic"] = args.legal_topic
+    if args.need:
+        params["need"] = args.need
+    if args.state:
+        params["state"] = args.state
+    if args.jurisdiction:
+        params["jurisdiction"] = args.jurisdiction
+
+    r = httpx.get(f"{API}/authority", params=params, timeout=10)
+    if r.status_code != 200:
+        print(c(RED, f"error {r.status_code}: {r.text}"))
+        return
+    data = r.json()
+
+    if args.legal_topic:
+        # Topic-route view
+        header(f"AUTHORITY LADDER  '{data['legal_topic']}'")
+        if data.get("description"):
+            print(f"  {c(DIM, data['description'])}")
+        print()
+        if args.state and data.get("primary_statute"):
+            print(c(BOLD + GREEN, f"  Primary statute (your filter: {args.state}):"))
+            _print_source_brief(data["primary_statute"], indent="  ")
+        elif data.get("primary_statute_per_state"):
+            print(c(BOLD + GREEN, "  Primary statute (per state):"))
+            for sc, src in data["primary_statute_per_state"].items():
+                if src:
+                    print(f"    {c(BOLD + BLUE, sc)}: {src['name']}  {c(GREY + UND, src['url'])}")
+        print()
+        if data.get("case_law"):
+            print(c(BOLD + CYAN, "  Case law:"))
+            _print_source_brief(data["case_law"], indent="  ")
+            print()
+        if data.get("statistics"):
+            print(c(BOLD + BLUE, "  Statistics / damages framing:"))
+            _print_source_brief(data["statistics"], indent="  ")
+            print()
+        if data.get("authority_note"):
+            print(c(YELLOW, "  ⚠ Authority note:"))
+            for line in str(data["authority_note"]).strip().splitlines():
+                print(f"    {c(DIM, line)}")
+    else:
+        # Need-route view
+        routes = data.get("routes", [])
+        header(f"AUTHORITY ROUTES  ({len(routes)} matched)")
+        for r_ in routes:
+            print(c(BOLD, f"  • {r_['need']}")
+                  + c(DIM, f"   [{r_.get('for_jurisdiction','ANY')}]"))
+            for s in r_.get("primary", []):
+                _print_source_brief(s, indent="    ")
+            for s in r_.get("secondary", []) or []:
+                _print_source_brief(s, indent="    ")
+            if r_.get("why"):
+                why = str(r_["why"]).strip()
+                for line in why.splitlines():
+                    print(f"    {c(DIM, '→ ' + line)}")
+            print()
+
+
 def cmd_lookup(args):
     r = httpx.get(f"{API}/lookup", params={"citation": args.citation}, timeout=30)
     if r.status_code != 200:
@@ -204,6 +362,14 @@ def cmd_search(args):
         params["state"] = args.state
     if args.factor:
         params["factor"] = args.factor
+    if args.legal_topic:
+        params["legal_topic"] = args.legal_topic
+    if args.jurisdiction:
+        params["jurisdiction"] = args.jurisdiction
+    if args.document_type:
+        params["document_type"] = args.document_type
+    if args.min_confidence is not None:
+        params["min_topic_confidence"] = args.min_confidence
     if args.pi_only:
         params["pi_only"] = "true"
     r = httpx.get(f"{API}/search", params=params, timeout=60)
@@ -219,6 +385,10 @@ def cmd_ask(args):
         body["state"] = args.state
     if args.factor:
         body["factor"] = args.factor
+    if args.legal_topic:
+        body["legal_topic"] = args.legal_topic
+    if args.jurisdiction:
+        body["jurisdiction"] = args.jurisdiction
     r = httpx.post(f"{API}/ask", json=body, timeout=60)
     if r.status_code != 200:
         print(c(RED, f"error {r.status_code}: {r.text}"))
@@ -248,6 +418,19 @@ def main() -> None:
 
     sub.add_parser("health").set_defaults(func=cmd_health)
     sub.add_parser("factors").set_defaults(func=cmd_factors)
+    sub.add_parser("topics").set_defaults(func=cmd_topics)
+
+    psr = sub.add_parser("sources", help="View the authoritative-source wiki")
+    psr.add_argument("--state", default=None, help="Filter by state (CA, TX, FL, PA)")
+    psr.add_argument("--kind", default=None, help="Filter by kind (primary_statute, case_law, bar_association, ...)")
+    psr.set_defaults(func=cmd_sources)
+
+    pau = sub.add_parser("authority", help="'Which sources are authoritative for what'")
+    pau.add_argument("--legal-topic", default=None, help="e.g. 'DUI-related behavior'")
+    pau.add_argument("--need", default=None, help="Substring of a research need (e.g. 'damages', 'case law', 'court rules')")
+    pau.add_argument("--state", default=None, help="2-letter state code")
+    pau.add_argument("--jurisdiction", default=None, help="Full jurisdiction name")
+    pau.set_defaults(func=cmd_authority)
 
     pl = sub.add_parser("lookup")
     pl.add_argument("citation")
@@ -262,6 +445,10 @@ def main() -> None:
     ps.add_argument("query")
     ps.add_argument("--state", default=None)
     ps.add_argument("--factor", default=None)
+    ps.add_argument("--legal-topic", default=None)
+    ps.add_argument("--jurisdiction", default=None)
+    ps.add_argument("--document-type", default=None)
+    ps.add_argument("--min-confidence", type=float, default=None)
     ps.add_argument("--pi-only", action="store_true")
     ps.add_argument("--k", type=int, default=5)
     ps.set_defaults(func=cmd_search)
@@ -270,6 +457,8 @@ def main() -> None:
     pa.add_argument("question")
     pa.add_argument("--state", default=None)
     pa.add_argument("--factor", default=None)
+    pa.add_argument("--legal-topic", default=None)
+    pa.add_argument("--jurisdiction", default=None)
     pa.add_argument("--k", type=int, default=5)
     pa.set_defaults(func=cmd_ask)
 
