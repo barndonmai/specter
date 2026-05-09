@@ -280,7 +280,7 @@ def render_text(brief: dict[str, Any]) -> str:
         lines.append("")
 
     if brief.get("context_tags"):
-        lines.append("Context (non-canonical PI tags on this statute):")
+        lines.append("Also tagged for:")
         for t in brief["context_tags"]:
             lines.append(f"  • {t}")
         lines.append("")
@@ -291,7 +291,7 @@ def render_text(brief: dict[str, Any]) -> str:
         lines.append("")
 
     if brief.get("specter_notes"):
-        lines.append("Specter notes:")
+        lines.append("📝 My read:")
         for n in brief["specter_notes"]:
             lines.append(f"  • {n}")
 
@@ -352,7 +352,7 @@ def render_ansi(brief: dict[str, Any]) -> str:
         lines.append("")
 
     if brief.get("context_tags"):
-        lines.append(b(_CYAN, "Context (non-canonical PI tags on this statute):"))
+        lines.append(b(_CYAN, "Also tagged for:"))
         for t in brief["context_tags"]:
             lines.append(f"  {b(_DIM, '• ' + t)}")
         lines.append("")
@@ -363,7 +363,7 @@ def render_ansi(brief: dict[str, Any]) -> str:
         lines.append("")
 
     if brief.get("specter_notes"):
-        lines.append(b(_DIM, "Specter notes:"))
+        lines.append(b(_DIM, "📝 My read:"))
         for n in brief["specter_notes"]:
             lines.append(f"  {b(_DIM, '• ' + n)}")
 
