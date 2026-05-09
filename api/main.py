@@ -20,6 +20,7 @@ from tagger.enrich import LEGAL_TOPICS
 from api.voyage_embed import embed
 from api import chroma_store
 from api import organizer
+from api import canada_memo
 import wiki as authority_wiki
 
 load_dotenv()
@@ -288,6 +289,78 @@ def organize(body: OrganizeBody):
         "statutes": statutes,
         "comparables": comps,
         "coverage": gaps,
+    }
+
+
+# ============================================================================
+# Canada Memo  —  full PI Case Assessment Memo from case_stressor pipeline
+# ============================================================================
+
+class CanadaMemoBody(BaseModel):
+    facts: str
+    treatment_gap:           Optional[bool] = None
+    pre_existing:            Optional[bool] = None
+    surveillance:            Optional[bool] = None
+    contributory_negligence: Optional[bool] = None
+    municipal:               Optional[bool] = None
+    plaintiff_won:           Optional[bool] = None
+    defendant_type:          Optional[str]  = None
+    court:                   Optional[str]  = None
+    year_min:                Optional[int]  = None
+
+
+class CanadaWhatIfBody(BaseModel):
+    original_facts: str
+    modified_facts: str
+    original_filters: Optional[dict] = None
+    modified_filters: Optional[dict] = None
+
+
+@app.post("/canada/memo")
+def canada_memo_endpoint(body: CanadaMemoBody):
+    """
+    Run the case_stressor PI Case Assessment Memo pipeline against the
+    Ontario PI case-law corpus and return the formatted memo as a single
+    markdown string. This is the response the WhatsApp UI prints verbatim.
+    """
+    filters = canada_memo.build_filters(
+        treatment_gap=body.treatment_gap,
+        pre_existing=body.pre_existing,
+        surveillance=body.surveillance,
+        contributory_negligence=body.contributory_negligence,
+        municipal=body.municipal,
+        plaintiff_won=body.plaintiff_won,
+        defendant_type=body.defendant_type,
+        court=body.court,
+        year_min=body.year_min,
+    )
+    try:
+        memo_text = canada_memo.generate_memo(body.facts, filters=filters)
+    except Exception as e:
+        raise HTTPException(500, f"memo generation failed: {type(e).__name__}: {e}")
+    return {
+        "facts":  body.facts,
+        "filters": filters,
+        "memo":   memo_text,
+    }
+
+
+@app.post("/canada/whatif")
+def canada_whatif_endpoint(body: CanadaWhatIfBody):
+    """What-if scenario comparison memo against the Ontario corpus."""
+    try:
+        memo_text = canada_memo.generate_whatif_memo(
+            body.original_facts,
+            body.modified_facts,
+            original_filters=body.original_filters,
+            modified_filters=body.modified_filters,
+        )
+    except Exception as e:
+        raise HTTPException(500, f"what-if memo failed: {type(e).__name__}: {e}")
+    return {
+        "original_facts": body.original_facts,
+        "modified_facts": body.modified_facts,
+        "memo":           memo_text,
     }
 
 
