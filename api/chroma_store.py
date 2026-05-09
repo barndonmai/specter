@@ -113,8 +113,15 @@ def search(
 
 
 def _row(res: dict[str, Any], i: int) -> dict[str, Any]:
-    return {
+    out = {
         "id": res["ids"][i],
         "text": res["documents"][i],
         **(res["metadatas"][i] or {}),
     }
+    # Reconstruct contributing_factors from factors_csv so callers don't have
+    # to re-implement the unflatten. Chroma stores arrays as a CSV string +
+    # per-factor boolean flags; the canonical list is what consumers want.
+    if "contributing_factors" not in out:
+        csv = out.get("factors_csv") or ""
+        out["contributing_factors"] = [f.strip() for f in csv.split(",") if f.strip()]
+    return out
