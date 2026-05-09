@@ -10,3 +10,4 @@ data/tagged/*.json
 !data/raw/.gitkeep
 !data/tagged/.gitkeep
 .DS_Store
+chroma_db/
