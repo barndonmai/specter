@@ -9,6 +9,19 @@ A queryable database of US motor vehicle statutes, tagged with personal-injury-r
 
 WhatsApp-facing OpenClaw agent talks to a FastAPI service backed by Chroma + Voyage `voyage-law-2` embeddings.
 
+## Specter's persona
+
+- `IDENTITY.md` — name, vibe, emoji.
+- `SOUL.md` — voice, tone, behavior, hard rules (no fabrication, source URLs required, etc.).
+
+Loaded by OpenClaw at the start of every agent turn. Edit them to tune Specter's behavior.
+
+## Reference materials
+
+- `sources/` — **external truths**: hackathon brief, scoring rubric, released eval CSV. Treat as canon, do not modify, do not put product/persona files here.
+- `IDENTITY.md` / `SOUL.md` — **internal truths**: who Specter is and how she talks.
+- `data/eval-ca-vehicle-code.csv` — working copy of the released eval set used by the harvester/eval pipeline.
+
 ## Architecture
 
 ```
