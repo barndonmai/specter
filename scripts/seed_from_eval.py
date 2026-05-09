@@ -143,6 +143,14 @@ STATE_PROFILES: dict[str, dict] = {
             f"txtType=HTM&ttl=75&div=0&chpt=33&sctn={section.split('(')[0].split('.')[0]}"
         ),
     },
+    "Ohio": {
+        "code_slug": "orc",
+        "state_code": "OH",
+        # Ohio Revised Code — LAWriter (official codes site).
+        "url_for": lambda section: (
+            f"https://codes.ohio.gov/ohio-revised-code/section-{section.split('(')[0]}"
+        ),
+    },
 }
 
 
