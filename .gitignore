@@ -1,0 +1,12 @@
+.env
+.chroma/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+data/raw/*.json
+data/tagged/*.json
+!data/raw/.gitkeep
+!data/tagged/.gitkeep
+.DS_Store
