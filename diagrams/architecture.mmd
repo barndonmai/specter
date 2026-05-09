@@ -1,0 +1,70 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#1e1e2e","primaryTextColor":"#cdd6f4","lineColor":"#89b4fa"}} }%%
+flowchart TB
+    %% =========================================================
+    %% Specter — system architecture
+    %% =========================================================
+
+    subgraph Client["👤 Client"]
+        WA["WhatsApp / chat surface"]
+    end
+
+    subgraph Agent["🤖 OpenClaw agent (separate process)"]
+        SOUL["SOUL.md persona"]
+        Skills["openclaw/skills/<br/>• harvester-query<br/>• pi_brief_format<br/>• citation-format<br/>• web_fallback"]
+    end
+
+    subgraph SpecterAPI["🧠 Specter API (FastAPI :8000)"]
+        Main["api/main.py<br/>endpoints:<br/>• /lookup<br/>• /search<br/>• /ask<br/>• /factors • /topics<br/>• /sources • /authority"]
+        Voyage["api/voyage_embed.py<br/>• lazy client<br/>• RPM token-bucket<br/>• LRU cache<br/>• 429 retry"]
+        Chroma["api/chroma_store.py<br/>• filter flags<br/>• cosine search<br/>• $and assembly"]
+        Brief["api/pi_brief.py<br/>(attorney-style output)"]
+    end
+
+    subgraph Wiki["📚 Authority wiki (yaml)"]
+        Sources["wiki/sources.yaml<br/>22 sources, 7 kinds"]
+        Map["wiki/authority_map.yaml<br/>18 need-routes,<br/>5 topic-routes"]
+    end
+
+    subgraph Storage["💾 Local persistent storage"]
+        ChromaDB[("Chroma DB<br/>./.chroma/<br/>384 records<br/>1024-dim cosine")]
+        Raw[("data/raw/*.json")]
+        Tagged[("data/tagged/*.json")]
+        CSVs[("data/eval-*.csv")]
+    end
+
+    subgraph External["☁️ External services"]
+        VoyageAPI["Voyage AI<br/>voyage-law-2<br/>(embeddings)"]
+        Anthropic["Anthropic<br/>claude-haiku-4-5<br/>(tagging + enrichment)"]
+    end
+
+    subgraph Pipeline["⚙️ Build pipeline (offline)"]
+        Seed["scripts/seed_from_eval.py"]
+        Tag["tagger/tag.py"]
+        Load["scripts/load_chroma.py"]
+        Enrich["tagger/enrich.py"]
+    end
+
+    WA --> Skills
+    Skills --> Main
+    Main --> Voyage --> VoyageAPI
+    Main --> Chroma --> ChromaDB
+    Main --> Brief
+    Main --> Sources
+    Main --> Map
+
+    CSVs --> Seed --> Raw --> Tag --> Tagged
+    Tag -.uses.-> Anthropic
+    Tagged --> Load --> ChromaDB
+    Load -.uses.-> VoyageAPI
+    Enrich --> ChromaDB
+    Enrich -.uses.-> Anthropic
+
+    classDef external fill:#fff5e1,stroke:#cba6f7,color:#000
+    classDef storage  fill:#e8f5e9,stroke:#a6e3a1,color:#000
+    classDef api      fill:#e3f2fd,stroke:#89b4fa,color:#000
+    classDef wiki     fill:#fff9c4,stroke:#f9e2af,color:#000
+
+    class VoyageAPI,Anthropic external
+    class ChromaDB,Raw,Tagged,CSVs storage
+    class Main,Voyage,Chroma,Brief api
+    class Sources,Map wiki

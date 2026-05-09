@@ -1,0 +1,33 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#1e1e2e","lineColor":"#a6e3a1"}} }%%
+flowchart LR
+    %% =========================================================
+    %% Build pipeline — CSV in, Chroma out
+    %% =========================================================
+
+    CSV[("data/eval-*-<br/>vehicle-code.csv<br/>per state")]:::input
+    Raw[("data/raw/<br/>*-eval.json")]:::stage
+    Tagged[("data/tagged/<br/>*-eval.json")]:::stage
+    Vec[("Chroma<br/>./.chroma/<br/>384 records,<br/>1024-dim")]:::vec
+
+    Seed[scripts/seed_from_eval.py]:::script
+    Tag[tagger/tag.py]:::script
+    Load[scripts/load_chroma.py]:::script
+    Enrich[tagger/enrich.py]:::script
+
+    Voyage[("Voyage law-2<br/>embed()")]:::external
+    Claude[("Claude Haiku<br/>classify()")]:::external
+
+    CSV -- "make seed" --> Seed --> Raw
+    Raw -- "make tag" --> Tag --> Tagged
+    Tag -.uses.-> Claude
+    Tagged -- "make load<br/>(incremental)" --> Load --> Vec
+    Load -.embeds via.-> Voyage
+    Vec -- "make enrich<br/>(in-place metadata)" --> Enrich
+    Enrich -.classifies via.-> Claude
+    Enrich -.update().-> Vec
+
+    classDef input    fill:#fff5e1,stroke:#cba6f7,color:#000
+    classDef stage    fill:#e8f5e9,stroke:#a6e3a1,color:#000
+    classDef vec      fill:#e3f2fd,stroke:#89b4fa,color:#000
+    classDef script   fill:#1e1e2e,stroke:#cba6f7,color:#cdd6f4
+    classDef external fill:#fff9c4,stroke:#f9e2af,color:#000

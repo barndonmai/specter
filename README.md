@@ -1,123 +1,248 @@
 # Specter
 
-> Legal research agent for personal injury attorneys.
+> **Legal research agent for personal-injury attorneys.**
 > EvenUp × OpenClaw Hackathon — May 9, 2026.
 
-## What it is
+A queryable, semantically-indexed database of U.S. motor vehicle statutes — tagged with attorney-relevant contributing factors, normalized to a clean legal-topic taxonomy, and routed through a curated wiki of authoritative sources. Talks to a WhatsApp-facing OpenClaw agent.
 
-A queryable database of US motor vehicle statutes, tagged with personal-injury-relevant contributing factors, with semantic + filtered retrieval. The Harvester layer.
+---
 
-WhatsApp-facing OpenClaw agent talks to a FastAPI service backed by Chroma + Voyage `voyage-law-2` embeddings.
+## ⚡ At a glance
 
-## Specter's persona
+| Layer | What | Numbers |
+|---|---|---|
+| **Coverage** | Vehicle / traffic statutes across U.S. jurisdictions | **384 records · 6 states** (CA, TX, FL, PA, IL, OH) |
+| **Classification** | Raw `contributing_factor` from each state's CSV | 17-category schema + per-state extras |
+| **Abstraction** | Normalized `legal_topic` (Claude-enriched) | **21 topics · 19 in active use** · 73% records ≥ 0.9 confidence |
+| **Embeddings** | Voyage `voyage-law-2` over the statute text | 1024-dim, unit-normalized, cosine search |
+| **Storage** | Local Chroma persistent collection | `./.chroma/` (~3.4 MB) |
+| **Wiki** | Curated authoritative-source registry | **22 sources · 7 kinds · 18 routes** |
+| **API** | FastAPI on `:8000` | 8 endpoints, JSON in / out |
+| **Released-set eval** | Citation lookup against the released CA CSV | **100 %** on the 41-row released set |
 
-- `IDENTITY.md` — name, vibe, emoji.
-- `SOUL.md` — voice, tone, behavior, hard rules (no fabrication, source URLs required, etc.).
+---
 
-Loaded by OpenClaw at the start of every agent turn. Edit them to tune Specter's behavior.
-
-## Reference materials
-
-- `sources/` — **external truths**: hackathon brief, scoring rubric, released eval CSV. Treat as canon, do not modify, do not put product/persona files here.
-- `IDENTITY.md` / `SOUL.md` — **internal truths**: who Specter is and how she talks.
-- `data/eval-ca-vehicle-code.csv` — working copy of the released eval set used by the harvester/eval pipeline.
-- `data/pi_playbook.yaml` — hand-curated PI doctrine notes per contributing-factor (NPS analysis, common defenses, evidence checklist, PI angle). Used by the brief formatter to turn a Wikipedia-style citation into a PI-lawyer-grade brief block.
-
-## Architecture
+## 🧠 Architecture
 
 ```
-WhatsApp ─► OpenClaw agent ─► FastAPI (this repo) ─► Chroma (Voyage embeddings)
-                                                  └─► Anthropic (query understanding, optional rerank)
+WhatsApp ─► OpenClaw agent ─► FastAPI (this repo) ─► Voyage law-2 (embed)
+                                  │                ─► Chroma (cosine search)
+                                  │                ─► wiki/  (authority routing)
+                                  └─► Claude Haiku (factor + topic enrichment)
 ```
 
-## Layout
+For a live, terminal-friendly walkthrough:
+
+```bash
+make visualize-entire-architecture-project   # full system + user data flow
+make schema                                  # every field, type, distribution
+make chroma-viz                              # vector store deep dive
+make mermaid                                 # write Mermaid diagrams to diagrams/
+```
+
+Or render any of `diagrams/*.mmd` at <https://mermaid.live>.
+
+---
+
+## 🚀 Quickstart
+
+```bash
+make install                  # pip install -r requirements.txt
+cp .env.example .env          # then fill in VOYAGE_API_KEY + ANTHROPIC_API_KEY
+make seed                     # CSV → data/raw/<state>-eval.json
+make tag                      # Claude factor classifier → data/tagged/
+make load                     # tagged JSON → Chroma w/ Voyage embeddings (incremental)
+PYTHONPATH=. .venv/bin/python -m tagger.enrich    # adds legal_topic / topic_confidence / etc.
+make serve                    # FastAPI on http://localhost:8000
+```
+
+Verify:
+
+```bash
+curl http://localhost:8000/healthz
+# {"ok": true, "collection": "specter_statutes", "count": 384}
+```
+
+---
+
+## 🎬 Demos
+
+```bash
+make demo                    # structured tour: cross-state, factor + topic filters, /ask
+make demo-realistic          # messy human-language queries
+make demo-big-ass-query      # full Anaheim phantom-vehicle case workup, end-to-end
+make browse                  # curses TUI to scroll every record (lawyer/engineer toggle)
+make sources                 # the authoritative-source catalog
+make authority               # the "which sources for what" wiki, demoed
+```
+
+---
+
+## 📚 Reference materials & persona
+
+- `sources/` — **external truths**: hackathon brief, scoring rubric, released eval CSV. Canon. Don't modify.
+- `wiki/sources.yaml` — catalog of 22 trusted sources across 7 kinds (statute / case-law / bar / court / federal / state).
+- `wiki/authority_map.yaml` — the routing layer: *"for question X, use source Y."*
+- `IDENTITY.md` / `SOUL.md` — Specter's persona (loaded by OpenClaw at every turn). Hard rules: no fabrication, every citation carries a source URL.
+- `data/pi_playbook.yaml` — hand-curated PI-doctrine notes per factor (NPS analysis, common defenses, evidence checklist). Used by the brief formatter.
+- `data/factor_synonyms.yaml` — maps non-canonical state factor labels to the canonical 17-cat schema.
+
+---
+
+## 🗂 Repo layout
 
 ```
 specter/
-├── harvester/          # Scrapers per jurisdiction → data/raw/*.json
-│   └── scrapers/
-│       ├── ca.py       # California (leginfo or LII)
-│       ├── ny.py
-│       ├── tx.py
-│       ├── fl.py
-│       └── il.py
-├── tagger/             # Claude → 17-category contributing-factor labels
-│   ├── prompt.py
-│   └── tag.py          # batch tagger: data/raw/*.json → data/tagged/*.json
-├── api/                # FastAPI: /lookup, /search, /ask
-│   ├── main.py
-│   ├── chroma_store.py
-│   └── voyage_embed.py
-├── evals/              # Run released CSV against the API
-│   └── run_eval.py
+├── harvester/                       # Schema + scraper stubs
+│   ├── schema.py                    # StatuteRecord (Pydantic) + 17 factors
+│   └── scrapers/{ca,tx,fl,pa,il,oh,…}.py
+├── tagger/                          # LLM enrichment
+│   ├── prompt.py                    # 17-cat classifier prompt
+│   ├── tag.py                       # batch tagger: data/raw/*.json → data/tagged/*.json
+│   └── enrich.py                    # adds legal_topic / topic_confidence / jurisdiction_norm
+│                                    # / document_type / authority_source IN-PLACE
+│                                    # (preserves embeddings via collection.update())
+├── api/                             # FastAPI service surface
+│   ├── main.py                      # /healthz /factors /topics /lookup /search /ask
+│   │                                # /sources /authority
+│   ├── chroma_store.py              # Chroma wrapper + factor-flag filtering trick
+│   ├── voyage_embed.py              # Lazy Voyage client + RPM token bucket + LRU cache
+│   └── pi_brief.py                  # PI-lawyer brief formatter
+├── wiki/                            # Authoritative-source wiki (the bonus deliverable)
+│   ├── sources.yaml                 # 22 sources, 7 kinds, 6 jurisdictions
+│   ├── authority_map.yaml           # 18 need-routes + 5 topic-routes
+│   └── __init__.py                  # loaders + route_for_need / route_for_topic
+├── scripts/                         # Operator + demo CLI
+│   ├── seed_from_eval.py            # CSV → data/raw
+│   ├── load_chroma.py               # incremental Voyage embed → Chroma
+│   ├── pretty.py                    # ANSI-rendered API client
+│   ├── browse.py                    # curses TUI
+│   ├── schema.py                    # live schema introspector
+│   ├── architecture.py              # full architecture visualizer
+│   ├── chroma_viz.py                # vector-store deep dive
+│   ├── mermaid.py                   # Mermaid diagram generator
+│   └── case_demo.sh                 # Anaheim phantom-vehicle showpiece
+├── evals/run_eval.py                # citation lookup + factor retrieval@k against released CSV
 ├── data/
-│   ├── raw/            # untagged statutes (per-state JSON)
-│   ├── tagged/         # tagged statutes ready for Chroma
-│   └── eval-ca-vehicle-code.csv  # released set (the rosetta stone)
-├── scripts/
-│   └── load_chroma.py  # tagged JSON → Chroma collection
-├── Makefile
+│   ├── eval-{ca,tx,fl,pa,il,oh}-vehicle-code.csv
+│   ├── raw/<state>-eval.json
+│   ├── tagged/<state>-eval.json
+│   ├── pi_playbook.yaml
+│   └── factor_synonyms.yaml
+├── openclaw/skills/                 # Skills loaded by the WhatsApp agent
+│   ├── harvester-query/
+│   ├── pi_brief_format/
+│   ├── citation-format/
+│   └── web_fallback/
+├── diagrams/                        # Generated by `make mermaid`
+├── Makefile                         # Every operator + demo + viz target
 ├── requirements.txt
 └── .env.example
 ```
 
-## Schema (a record)
+---
+
+## 🧾 Schema (a record in Chroma)
 
 ```json
 {
   "id": "ca-vc-23152-a",
-  "jurisdiction": "California",
+  "citation": "Cal. Veh. Code § 23152(a)",
   "state_code": "CA",
+  "jurisdiction": "California",
+  "jurisdiction_norm": "California",
   "code": "Cal. Veh. Code",
   "section": "23152(a)",
-  "citation": "Cal. Veh. Code § 23152(a)",
   "title": "Driving under the influence of alcohol",
-  "text": "It is unlawful for any person who is under the influence...",
-  "hierarchy_path": ["Vehicle Code", "Division 11", "Chapter 12", "Article 2"],
-  "effective_date": "2024-01-01",
-  "source_url": "https://leginfo.legislature.ca.gov/...",
-  "contributing_factors": ["DUI/DWI"],
+  "text": "It is unlawful for a person who is under the influence...",
+  "source_url": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=VEH&sectionNum=23152.",
+  "document_type": "statute",
+  "authority_source": "state_legislature",
+
+  "factors_csv": "DUI/DWI",
+  "factor_DUI/DWI": true,            // bool flag, used by Chroma where-clauses
   "pi_relevant": true,
-  "confidence": 0.98
+  "confidence": 1.0,                  // ground-truth label confidence
+
+  "legal_topic": "DUI-related behavior",
+  "topic_confidence": 0.99,
+
+  // plus a 1024-dim Voyage law-2 embedding (not in metadata, lives in vector store)
 }
 ```
 
-## The 17 contributing-factor categories
+For the full ER diagram see `diagrams/erd.mmd` (paste at <https://mermaid.live>).
 
-From the released CSV:
+---
+
+## 🌐 API contract
+
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/healthz` | Health + record count |
+| GET | `/factors` | The 17 raw contributing-factor categories |
+| GET | `/topics` | The 21 normalized legal topics (the abstraction layer) |
+| GET | `/lookup?citation=…` | Exact citation → single record |
+| GET | `/search?q=…&state=…&factor=…&legal_topic=…&jurisdiction=…&document_type=…&authority_source=…&min_topic_confidence=…&pi_only=…&k=…` | Vector search + structured filters |
+| POST | `/ask` | Same engine as `/search`, JSON body — ergonomic for chat agents |
+| GET | `/sources?state=…&kind=…` | Browse the curated source catalog |
+| GET | `/authority?legal_topic=…&state=…` *or* `?need=…&jurisdiction=…` | Authority routing — *"which sources are authoritative for what."* |
+
+All responses include `source_url` on every record. Per hackathon ground rules, no source URL = doesn't count.
+
+---
+
+## 🏷 The 17 contributing-factor categories (raw layer)
 
 DUI/DWI · Driving Too Fast For Conditions · Failure to Maintain Lane · Failure to Obey Traffic Control Device · Failure to Use/Activate Horn · Failure to Yield at a Yield Sign · Failure to Yield the Right-of-Way · Fleeing a Police Officer · Fleeing the Scene of a Collision · Following Too Closely · Improper Lane of Travel · Improper Passing · Improper Starting · Improper Stopping · Improper Turning · Reckless Driving · Using a Wireless Telephone/Texting While Driving
 
-## Quickstart
+## 🧠 The 21 normalized legal topics (abstraction layer)
 
-```bash
-make install          # pip install
-cp .env.example .env  # add VOYAGE_API_KEY, ANTHROPIC_API_KEY
-make ingest           # run all scrapers
-make tag              # tag every raw statute
-make load             # push tagged JSON into Chroma
-make serve            # FastAPI on :8000
-make eval             # run the released CSV against the API
-```
+`DUI-related behavior` · `speeding` · `distracted driving` · `failure to yield` · `reckless driving` · `improper lane usage` · `improper turning` · `improper passing` · `improper stopping or starting` · `following too closely` · `fleeing or evading` · `hit and run` · `traffic control device violation` · `hazardous driving conditions` · `vehicle equipment violation` · `right-of-way violation` · `racing or exhibition` · `license or registration violation` · `school zone or bus violation` · `pedestrian or bicycle protection` · `general traffic violation`
 
-## API contract (lock this in first 30 min)
+---
 
-```
-GET  /healthz
-GET  /lookup?citation=Cal.+Veh.+Code+§+23152(a)
-GET  /search?q=driving+drunk&state=CA&factor=DUI%2FDWI&k=10
-POST /ask     { "question": "What CA statutes cover DUI?" }
-```
+## 🛠 Make targets
 
-All responses include `source_url` on every record. Per ground rules, no source URL = doesn't count.
+| Operator | Visualization | Demos |
+|---|---|---|
+| `make install` | `make schema` | `make demo` |
+| `make seed` | `make visualize-entire-architecture-project` | `make demo-realistic` |
+| `make tag` | `make chroma-viz` | `make demo-big-ass-query` |
+| `make load` | `make mermaid` | `make sources` |
+| `make serve` | `make browse` | `make authority` |
+| `make eval` | | |
+| `make clean` | | |
 
-## Team split
+`PY` defaults to `.venv/bin/python` if it exists, otherwise `python3`.
 
-| Person | Track |
-|---|---|
-| 1 | CA full + 1 state ingest |
-| 2 | 3 more states ingest |
-| 3 | Tagging pipeline |
-| 4 | Chroma + FastAPI + Voyage |
-| 5 | OpenClaw / WhatsApp wiring + prompts |
-| 6 | Eval + demo |
+---
+
+## ⚙️ External services
+
+| Service | Used for | Env |
+|---|---|---|
+| Voyage AI (`voyage-law-2`) | 1024-dim legal embeddings | `VOYAGE_API_KEY` |
+| Anthropic (`claude-haiku-4-5`) | Factor tagging + topic enrichment | `ANTHROPIC_API_KEY` |
+| Chroma (PersistentClient) | Local vector DB | — |
+| OpenClaw (separate process) | WhatsApp-facing chat surface | — |
+
+`api/voyage_embed.py` enforces a token-bucket RPM limit (`VOYAGE_RPM`, default 3 for the free tier; bump to 300 with a card on file). It also LRU-caches every embedding, so demo retries are free.
+
+---
+
+## 🧪 Hackathon scoring posture
+
+- **Harvester (50 pts)** — 384 records across 6 states, normalized topic + raw factor dual-label, factor-flag filtering, hand-tuned Chroma where-clauses. ✅ floor (released CA CSV) at 100 % citation lookup.
+- **Authority wiki bonus** — `/authority` endpoint backed by `wiki/sources.yaml` + `wiki/authority_map.yaml`, with topic ladders (primary statute / case law / statistics) and need-based routing.
+- **Organizer-shaped UX** — `pi_brief` formatter + the `make demo-big-ass-query` end-to-end case workup demonstrate paralegal-grade output.
+- **Story (10 pts)** — `make demo-big-ass-query` is the 5-minute showpiece.
+
+---
+
+## 📝 Notes for future you
+
+- Every record carries a verifiable `source_url`. **No source URL = the record doesn't count** (per ground rules + SOUL.md).
+- The `legal_topic` abstraction means the system can answer *"distracted driving statutes"* across all states even when each state spells the raw factor differently.
+- Adding a new state is a CSV drop-in: add `data/eval-<XX>-vehicle-code.csv`, register the state in `scripts/seed_from_eval.py`, then `make seed && make tag && make load && PYTHONPATH=. .venv/bin/python -m tagger.enrich`.
+- The Voyage rate limit on the free tier is the most common failure mode. If `make eval` returns 500s, add a payment method and bump `VOYAGE_RPM=300`.

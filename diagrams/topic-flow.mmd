@@ -1,0 +1,93 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#1e1e2e","lineColor":"#f9e2af"}} }%%
+flowchart LR
+    %% Live raw-factor → normalized-topic mapping (top 25 raw labels)
+
+    R_Equipment["Equipment<br/>(40 records)"]:::raw
+    R_Right_of_Way["Right of Way<br/>(32 records)"]:::raw
+    R_Improper_Passing["Improper Passing<br/>(25 records)"]:::raw
+    R_Improper_Turning["Improper Turning<br/>(23 records)"]:::raw
+    R_Speeding["Speeding<br/>(19 records)"]:::raw
+    R_Traffic_Signals_and_Signs["Traffic Signals and Signs<br/>(19 records)"]:::raw
+    R_Traffic_Violation["Traffic Violation<br/>(19 records)"]:::raw
+    R_Wrong_Side_of_Road["Wrong Side of Road<br/>(17 records)"]:::raw
+    R_Other_Violation["Other Violation<br/>(16 records)"]:::raw
+    R_DUI_DWI["DUI/DWI<br/>(13 records)"]:::raw
+    R_Fleeing_the_Scene["Fleeing the Scene<br/>(12 records)"]:::raw
+    R_Reckless_Driving["Reckless Driving<br/>(10 records)"]:::raw
+    R_Seat_Belt_Violation["Seat Belt Violation<br/>(9 records)"]:::raw
+    R_Distracted_Driving["Distracted Driving<br/>(9 records)"]:::raw
+    R_Emergency_Vehicle_Violation["Emergency Vehicle Violation<br/>(9 records)"]:::raw
+    R_License_Violation["License Violation<br/>(8 records)"]:::raw
+    R_Improper_Lane_Use["Improper Lane Use<br/>(8 records)"]:::raw
+    R_Railroad_Crossing["Railroad Crossing<br/>(8 records)"]:::raw
+    R_School_Bus_Violation["School Bus Violation<br/>(7 records)"]:::raw
+    R_Parking_Violation["Parking Violation<br/>(7 records)"]:::raw
+    R_Following_Too_Closely["Following Too Closely<br/>(6 records)"]:::raw
+    R_Fleeing_a_Police_Officer["Fleeing a Police Officer<br/>(5 records)"]:::raw
+    R_Failure_to_Yield_the_Right_of_Way["Failure to Yield the Right-of-Way<br/>(5 records)"]:::raw
+    R_Improper_Lane_Change["Improper Lane Change<br/>(5 records)"]:::raw
+    R_Racing["Racing<br/>(5 records)"]:::raw
+
+    T_0(("DUI-related behavior<br/>13")):::topic
+    T_1(("distracted driving<br/>9")):::topic
+    T_2(("fleeing or evading<br/>5")):::topic
+    T_3(("following too closely<br/>6")):::topic
+    T_4(("general traffic violation<br/>16")):::topic
+    T_5(("hit and run<br/>12")):::topic
+    T_6(("improper lane usage<br/>31")):::topic
+    T_7(("improper passing<br/>26")):::topic
+    T_8(("improper stopping or starting<br/>7")):::topic
+    T_9(("improper turning<br/>23")):::topic
+    T_10(("license or registration violation<br/>9")):::topic
+    T_11(("pedestrian or bicycle protection<br/>12")):::topic
+    T_12(("racing or exhibition<br/>5")):::topic
+    T_13(("reckless driving<br/>10")):::topic
+    T_14(("right-of-way violation<br/>25")):::topic
+    T_15(("school zone or bus violation<br/>7")):::topic
+    T_16(("speeding<br/>19")):::topic
+    T_17(("traffic control device violation<br/>46")):::topic
+    T_18(("vehicle equipment violation<br/>55")):::topic
+
+    R_Equipment -- 40 --> T_18
+    R_Right_of_Way -- 20 --> T_14
+    R_Right_of_Way -- 7 --> T_11
+    R_Right_of_Way -- 4 --> T_9
+    R_Right_of_Way -- 1 --> T_17
+    R_Improper_Passing -- 25 --> T_7
+    R_Improper_Turning -- 19 --> T_9
+    R_Improper_Turning -- 3 --> T_17
+    R_Improper_Turning -- 1 --> T_14
+    R_Speeding -- 19 --> T_16
+    R_Traffic_Signals_and_Signs -- 19 --> T_17
+    R_Traffic_Violation -- 6 --> T_17
+    R_Traffic_Violation -- 5 --> T_4
+    R_Traffic_Violation -- 3 --> T_18
+    R_Traffic_Violation -- 2 --> T_8
+    R_Traffic_Violation -- 1 --> T_7
+    R_Traffic_Violation -- 1 --> T_6
+    R_Traffic_Violation -- 1 --> T_10
+    R_Wrong_Side_of_Road -- 17 --> T_6
+    R_Other_Violation -- 9 --> T_4
+    R_Other_Violation -- 4 --> T_11
+    R_Other_Violation -- 3 --> T_18
+    R_DUI_DWI -- 13 --> T_0
+    R_Fleeing_the_Scene -- 12 --> T_5
+    R_Reckless_Driving -- 10 --> T_13
+    R_Seat_Belt_Violation -- 9 --> T_18
+    R_Distracted_Driving -- 9 --> T_1
+    R_Emergency_Vehicle_Violation -- 9 --> T_17
+    R_License_Violation -- 8 --> T_10
+    R_Improper_Lane_Use -- 8 --> T_6
+    R_Railroad_Crossing -- 8 --> T_17
+    R_School_Bus_Violation -- 7 --> T_15
+    R_Parking_Violation -- 5 --> T_8
+    R_Parking_Violation -- 2 --> T_4
+    R_Following_Too_Closely -- 6 --> T_3
+    R_Fleeing_a_Police_Officer -- 5 --> T_2
+    R_Failure_to_Yield_the_Right_of_Way -- 4 --> T_14
+    R_Failure_to_Yield_the_Right_of_Way -- 1 --> T_11
+    R_Improper_Lane_Change -- 5 --> T_6
+    R_Racing -- 5 --> T_12
+
+    classDef raw   fill:#fff5e1,stroke:#cba6f7,color:#000
+    classDef topic fill:#e3f2fd,stroke:#89b4fa,color:#000
