@@ -1,0 +1,158 @@
+%% =========================================================================
+%% Specter — pitch deck as Mermaid diagrams
+%% Three diagrams in one file. Render at https://mermaid.live or via
+%% `make mermaid` (writes to diagrams/).
+%%
+%% 1. Value prop ............ what the paralegal gets out of one WhatsApp turn
+%% 2. Architecture .......... how every reply traces to a real source URL
+%% 3. Rubric coverage ....... which scoring axes from sources/Scoring we hit
+%%
+%% Slack a single block in or open them as separate Mermaid renders.
+%% =========================================================================
+
+
+%% =========================================================================
+%% 1. VALUE PROP — what does a paralegal get?
+%% =========================================================================
+flowchart LR
+    %% --- left column: what they ask ---
+    P([👤 Paralegal on WhatsApp])
+    Q1["Statute lookup<br/>“What's CVC § 23152(a)?”"]
+    Q2["Fact pattern<br/>“Rear-ender, San Francisco,<br/>$100K policy limits”"]
+    Q3["Case-law search<br/>“How have courts interpreted<br/>Tex. Transp. Code § 545.351?”"]
+
+    P --> Q1
+    P --> Q2
+    P --> Q3
+
+    %% --- center: Specter ---
+    S(((🥃 Specter<br/><br/>Harvey-voiced<br/>WhatsApp agent)))
+    Q1 --> S
+    Q2 --> S
+    Q3 --> S
+
+    %% --- right column: what they get back ---
+    R1["📋 PI brief<br/>• Bluebook citation<br/>• Pull quote, paste-ready<br/>• NPS analysis<br/>• Common defenses<br/>• Evidence checklist<br/>• ✅ Source URL on every cite"]
+    R2["📁 Case workup<br/>• Applicable statutes<br/>• Damages comparables<br/>• Coverage gaps flagged<br/>• ✅ Sourced or refused"]
+    R3["⚖️ Appellate cases<br/>• Real opinion names<br/>• Court + year<br/>• CourtListener URLs<br/>• ✅ No paraphrasing"]
+
+    S --> R1
+    S --> R2
+    S --> R3
+
+    %% --- the discipline that makes it different ---
+    DISC{{"🚫 No fabrication<br/>Every § ships with a URL,<br/>or it doesn't appear."}}
+    R1 --- DISC
+    R2 --- DISC
+    R3 --- DISC
+
+    classDef question fill:#fef3c7,stroke:#d97706,color:#000
+    classDef agent     fill:#1e3a8a,stroke:#1e40af,color:#fff,stroke-width:3px
+    classDef result    fill:#dcfce7,stroke:#16a34a,color:#000
+    classDef rule      fill:#fee2e2,stroke:#dc2626,color:#000
+
+    class Q1,Q2,Q3 question
+    class S agent
+    class R1,R2,R3 result
+    class DISC rule
+
+
+%% =========================================================================
+%% 2. ARCHITECTURE — how the no-fabrication discipline is enforced
+%% =========================================================================
+flowchart TB
+    User([👤 Paralegal])
+    WA[WhatsApp]
+    User <--> WA
+
+    WA <--> OC[OpenClaw agent<br/><b>Specter persona + 6 skills</b>]
+
+    %% --- skills layer ---
+    subgraph SKILLS [Skills]
+        direction LR
+        SK1[harvester_query<br/>statute lookup]
+        SK2[caselaw_query<br/>CourtListener]
+        SK3[pi_brief_format<br/>Harvey-voiced brief]
+        SK4[citation_format<br/>normalize messy cites]
+        SK5[web_fallback<br/>verified live fetch]
+        SK6[canada_memo<br/>CanLII case memo]
+    end
+    OC --> SKILLS
+
+    %% --- API + data layer ---
+    SKILLS --> API[FastAPI · :8000<br/>10+ endpoints]
+
+    API --> CHRO[(Chroma · split collections)]
+    CHRO --> US[(US · 384 statutes<br/>CA · TX · FL · PA · IL · OH)]
+    CHRO --> CA[(Canada · 340 PI cases<br/>real CanLII corpus)]
+
+    API --> CL[(CourtListener API<br/>US appellate opinions)]
+    API --> WIKI[(wiki/<br/>22 authoritative sources<br/>· legislatures<br/>· bar associations<br/>· court systems)]
+    API --> LIVE[(.gov live verify<br/>leginfo · flsenate · etc.)]
+
+    %% --- enrichment ---
+    EMB[Voyage law-2<br/>1024-dim legal embeddings<br/>+ RPM-throttled cache]
+    LLM[Claude Haiku<br/>factor + topic enrichment<br/>+ gap detection]
+    CHRO --- EMB
+    API --- LLM
+
+    %% --- the discipline gate ---
+    GATE{{"🛡️ verify-or-refuse gate<br/>anchor check · structural check ·<br/>SOUL forbidden-words list ·<br/>'every § ships with a URL'"}}
+    SKILLS -.-> GATE
+    GATE -.-> OC
+
+    classDef chan      fill:#1e3a8a,stroke:#1e40af,color:#fff
+    classDef agent     fill:#7c3aed,stroke:#6d28d9,color:#fff
+    classDef skill     fill:#fef3c7,stroke:#d97706,color:#000
+    classDef api       fill:#ddd6fe,stroke:#7c3aed,color:#000
+    classDef store     fill:#dcfce7,stroke:#16a34a,color:#000
+    classDef external  fill:#bae6fd,stroke:#0284c7,color:#000
+    classDef gate      fill:#fee2e2,stroke:#dc2626,color:#000,stroke-width:3px
+
+    class WA chan
+    class OC agent
+    class SK1,SK2,SK3,SK4,SK5,SK6 skill
+    class API api
+    class CHRO,US,CA,WIKI store
+    class CL,LIVE,EMB,LLM external
+    class GATE gate
+
+
+%% =========================================================================
+%% 3. RUBRIC COVERAGE — anchored to sources/Scoring
+%% =========================================================================
+flowchart LR
+    HARV["🛠️ Harvester<br/><b>50 pts</b><br/><br/>Half data design ·<br/>Half coverage"]
+    EXT["🧰 Built on top<br/><b>30 pts</b><br/><br/>Organizer or Negotiator"]
+    CRAFT["✨ Craft<br/><b>10 pts</b>"]
+    STORY["🎬 Story<br/><b>10 pts</b>"]
+
+    %% --- Harvester axis evidence ---
+    HARV --> H1["✅ 384 statutes · 6 states<br/>(CA · TX · FL · PA · IL · OH)"]
+    HARV --> H2["✅ 17-factor schema +<br/>21 normalized topics"]
+    HARV --> H3["✅ Voyage law-2 embeddings<br/>+ Chroma where-clauses"]
+    HARV --> H4["✅ 100% citation lookup<br/>on released CA CSV"]
+    HARV --> H5["✅ Curated authority wiki<br/>(22 sources, 7 kinds)<br/><i>rubric bonus axis</i>"]
+    HARV --> H6["✅ Case law layer<br/>340 CanLII + CourtListener<br/><i>rubric: 'case law<br/>interpreting key sections'</i>"]
+
+    %% --- Extension axis evidence ---
+    EXT --> E1["✅ Organizer extension<br/>/comparables · /organize<br/>statutes + comparables +<br/>gap detection"]
+    EXT --> E2["✅ PI brief format<br/>NPS · defenses · evidence ·<br/>per-statute on every reply"]
+    EXT --> E3["✅ Canadian PI memo<br/>/canada/memo<br/>Ontario-specific workup"]
+
+    %% --- Craft axis evidence ---
+    CRAFT --> C1["✅ Verify-or-refuse gate<br/>anchor + structural checks"]
+    CRAFT --> C2["✅ Hand-curated PI playbook<br/>(not LLM-generated)"]
+    CRAFT --> C3["✅ Free-tier-safe pipeline<br/>RPM token bucket + LRU<br/>+ incremental load"]
+    CRAFT --> C4["✅ SOUL hard rules<br/>no fabrication ·<br/>every § ships with URL ·<br/>no internal-jargon leakage"]
+
+    %% --- Story axis evidence ---
+    STORY --> S1["✅ WhatsApp delivery<br/>The agent IS the demo"]
+    STORY --> S2["✅ Harvey-Specter voice<br/>memorable, on-brand"]
+    STORY --> S3["✅ make demo-big-ass-query<br/>5-min showpiece"]
+
+    classDef rubric fill:#1e3a8a,stroke:#1e40af,color:#fff,stroke-width:3px
+    classDef hit    fill:#dcfce7,stroke:#16a34a,color:#000
+
+    class HARV,EXT,CRAFT,STORY rubric
+    class H1,H2,H3,H4,H5,H6,E1,E2,E3,C1,C2,C3,C4,S1,S2,S3 hit
