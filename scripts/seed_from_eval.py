@@ -61,6 +61,15 @@ STATE_PROFILES: dict[str, dict] = {
             f"{section.split('(')[0]}"
         ),
     },
+    "Pennsylvania": {
+        "code_slug": "75pacs",
+        "state_code": "PA",
+        # PA Consolidated Statutes — Title 75 (Vehicles). Public site.
+        "url_for": lambda section: (
+            "https://www.legis.state.pa.us/cfdocs/legis/LI/consCheck.cfm?"
+            f"txtType=HTM&ttl=75&div=0&chpt=33&sctn={section.split('(')[0].split('.')[0]}"
+        ),
+    },
 }
 
 
