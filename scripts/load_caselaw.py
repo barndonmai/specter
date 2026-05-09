@@ -27,8 +27,13 @@ from api.voyage_embed import embed
 from api import chroma_store
 
 PATH = ROOT / "data" / "tagged" / "canlii-caselaw.json"
-BATCH = int(os.getenv("CASELAW_BATCH", "8"))
-PAUSE = float(os.getenv("CASELAW_PAUSE_SEC", "25"))
+# Voyage free-tier TPM = 10K/min. Each text ~= 750 tokens at 3000 chars,
+# but the rate-limiter + cache layer adds overhead. Tighten both.
+BATCH = int(os.getenv("CASELAW_BATCH", "4"))
+PAUSE = float(os.getenv("CASELAW_PAUSE_SEC", "30"))
+# Hard cap on text length per record before embedding. ~1500 chars ≈ 380 tokens.
+# 4 records * 380 tokens = ~1.5K TPM. Comfortably under cap.
+MAX_CHARS = int(os.getenv("CASELAW_MAX_CHARS", "1500"))
 
 
 def log(msg: str) -> None:
@@ -60,7 +65,7 @@ def main() -> None:
     failed_ids: list[str] = []
     for i in range(0, n, BATCH):
         chunk = new[i:i + BATCH]
-        texts = [(r.get("text") or r.get("title") or r.get("citation") or "")[:3000]
+        texts = [(r.get("text") or r.get("title") or r.get("citation") or "")[:MAX_CHARS]
                  for r in chunk]
         try:
             t0 = time.time()
