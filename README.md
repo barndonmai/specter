@@ -21,6 +21,7 @@ Loaded by OpenClaw at the start of every agent turn. Edit them to tune Specter's
 - `sources/` — **external truths**: hackathon brief, scoring rubric, released eval CSV. Treat as canon, do not modify, do not put product/persona files here.
 - `IDENTITY.md` / `SOUL.md` — **internal truths**: who Specter is and how she talks.
 - `data/eval-ca-vehicle-code.csv` — working copy of the released eval set used by the harvester/eval pipeline.
+- `data/pi_playbook.yaml` — hand-curated PI doctrine notes per contributing-factor (NPS analysis, common defenses, evidence checklist, PI angle). Used by the brief formatter to turn a Wikipedia-style citation into a PI-lawyer-grade brief block.
 
 ## Architecture
 

@@ -1,0 +1,289 @@
+# Specter PI Playbook
+#
+# Per-contributing-factor notes for personal injury work. Hand-curated, NOT
+# LLM-generated — this is the frame that turns a Wikipedia-style citation into
+# a PI-lawyer-grade brief.
+#
+# Each entry is keyed by one of the 17 canonical contributing-factor categories
+# (see harvester/schema.py:CONTRIBUTING_FACTORS). When a paralegal asks Specter
+# about a statute, the formatter pulls:
+#   1. The statute itself (from Harvester)
+#   2. The factor-level notes from this file
+#   3. Renders both into a brief block
+#
+# Fields:
+#   nps_class_of_victim   — who the statute is meant to protect
+#   nps_class_of_harm     — what harm the statute is meant to prevent
+#   nps_available         — true | qualified | rare; whether NPS is typically
+#                           viable when defendant violates a statute in this
+#                           category. "qualified" = depends on facts; "rare" =
+#                           courts often refuse NPS even on clear violations.
+#   common_defenses       — list of defenses defendants typically raise
+#   evidence_to_gather    — what the paralegal should chase down
+#   pi_angle              — one-line summary of why this category matters in PI
+#
+# All notes are doctrine-level (apply across statutes in the category). For
+# statute-specific notes (e.g., subsection (b) is criminal-only), tag them on
+# the individual record's `notes` field, not here.
+
+DUI/DWI:
+  nps_class_of_victim: "All road users — pedestrians, cyclists, other drivers, passengers."
+  nps_class_of_harm: "Crash injuries caused by impaired-driving conduct."
+  nps_available: true
+  common_defenses:
+    - "Field sobriety test conditions invalid (uneven surface, poor lighting, medical condition)."
+    - "Blood/breath testing chain of custody — calibration records, certified technician."
+    - "Rising BAC defense — BAC at time of test exceeded BAC at time of driving."
+    - "Necessity / emergency doctrine where applicable."
+  evidence_to_gather:
+    - "Police report + dashcam/bodycam"
+    - "BAC test calibration + technician certification records"
+    - "Toxicology report (full panel, not just alcohol)"
+    - "Witness statements — driving pattern before stop"
+    - "Medical records of plaintiff (injuries causally tied to crash)"
+  pi_angle: "Strong NPS case. Criminal conviction often translates directly to civil liability via collateral estoppel. Punitive damages frequently available."
+
+Driving Too Fast For Conditions:
+  nps_class_of_victim: "All road users."
+  nps_class_of_harm: "Crash injuries from speed inappropriate for visibility, weather, road surface, or traffic."
+  nps_available: qualified
+  common_defenses:
+    - "Speed was reasonable given the conditions defendant actually perceived."
+    - "Plaintiff comparative fault for being in defendant's path."
+    - "Sudden emergency — unforeseen condition required the speed."
+  evidence_to_gather:
+    - "Weather reports for time of incident (NOAA)"
+    - "Visibility analysis — sunrise/sunset, fog, precipitation"
+    - "Road surface condition (state DOT records, photos)"
+    - "Skid mark analysis / accident reconstruction"
+    - "Dashcam footage if available"
+  pi_angle: "NPS available but jury question — what was 'reasonable' is fact-specific. Strongest with weather/visibility documentation."
+
+Failure to Maintain Lane:
+  nps_class_of_victim: "Adjacent-lane drivers, oncoming traffic, roadside pedestrians."
+  nps_class_of_harm: "Crash injuries from drift, swerve, or unsafe lane change."
+  nps_available: true
+  common_defenses:
+    - "Sudden mechanical failure (tire blowout, steering)."
+    - "Avoidance maneuver — defendant drifted to avoid hazard in their lane."
+    - "Plaintiff's lane position contributed (comparative fault)."
+  evidence_to_gather:
+    - "Vehicle inspection / mechanic records (rule out mechanical failure)"
+    - "Roadway photos showing lane markings"
+    - "Witness statements on driving pattern (drifting? swerving?)"
+    - "Cell phone records (distracted driving correlation)"
+  pi_angle: "Clean NPS factor when documented. Strong with eyewitness or dashcam."
+
+Failure to Obey Traffic Control Device:
+  nps_class_of_victim: "Cross-traffic, pedestrians in crosswalk, vehicles with right-of-way."
+  nps_class_of_harm: "Intersection collision, pedestrian strike."
+  nps_available: true
+  common_defenses:
+    - "Traffic device was malfunctioning or obscured."
+    - "Yellow-light timing dispute — defendant entered on yellow."
+    - "Plaintiff was not in protected class (e.g., illegally in intersection)."
+  evidence_to_gather:
+    - "Traffic-camera footage (red-light cameras, intersection cams)"
+    - "City DOT signal-timing records for that intersection"
+    - "Sight-line photos (was sign obscured by foliage?)"
+    - "Witness statements"
+    - "Skid marks indicating braking time relative to signal"
+  pi_angle: "Top-tier PI category. Clear NPS, strong factfinder appeal, often punitive-eligible if egregious."
+
+Failure to Use/Activate Horn:
+  nps_class_of_victim: "Pedestrians, cyclists, vehicles in defendant's path."
+  nps_class_of_harm: "Avoidable collision where audible warning would have prevented harm."
+  nps_available: rare
+  common_defenses:
+    - "Horn use was not the standard of care under the circumstances."
+    - "Plaintiff would not have heard / had time to react."
+    - "Defendant did sound horn (witness dispute)."
+  evidence_to_gather:
+    - "Witness statements specifically on whether horn was sounded"
+    - "Dashcam audio if available"
+    - "Statutory analysis — does this jurisdiction's statute create civil duty?"
+  pi_angle: "Weak standalone NPS factor — courts often treat horn-use as discretionary judgment, not duty. Use as supporting fact, not anchor."
+
+Failure to Yield at a Yield Sign:
+  nps_class_of_victim: "Drivers and pedestrians on the controlled-priority side."
+  nps_class_of_harm: "Intersection / merge collision injuries."
+  nps_available: true
+  common_defenses:
+    - "Yield sign was missing or obscured."
+    - "Plaintiff was traveling at unsafe speed (comparative fault)."
+    - "Defendant did yield — plaintiff misjudged speed/distance."
+  evidence_to_gather:
+    - "Photos of yield sign + sight lines"
+    - "City records (was sign installed at incident time?)"
+    - "Skid marks / vehicle damage angles"
+    - "Witness statements"
+  pi_angle: "Solid NPS factor with documentation. Comparative fault is the main risk."
+
+Failure to Yield the Right-of-Way:
+  nps_class_of_victim: "Vehicles or pedestrians lawfully exercising right-of-way (left turn, intersection, crosswalk, etc.)."
+  nps_class_of_harm: "Collision or pedestrian strike from improper entry into protected path."
+  nps_available: true
+  common_defenses:
+    - "Plaintiff did not actually have right-of-way (contested)."
+    - "Plaintiff was speeding, making them effectively un-yieldable."
+    - "Sudden emergency / obstructed view."
+  evidence_to_gather:
+    - "Intersection diagram + traffic flow"
+    - "Vehicle damage angles (accident reconstruction)"
+    - "Witness statements on which vehicle entered first"
+    - "Traffic camera footage"
+    - "Plaintiff's speed at time of collision"
+  pi_angle: "One of the most common PI fact patterns. Strong NPS where right-of-way is unambiguous (left-turner vs. through-traffic)."
+
+Fleeing a Police Officer:
+  nps_class_of_victim: "Other road users, pursuing officers, bystanders."
+  nps_class_of_harm: "Crash injuries from high-speed evasive driving."
+  nps_available: true
+  common_defenses:
+    - "Defendant did not realize officer was pursuing."
+    - "Pursuit policy violation by police (proximate-cause shift)."
+    - "Plaintiff was unforeseeable third party (limit on duty)."
+  evidence_to_gather:
+    - "Police pursuit dashcam + radio logs"
+    - "Department's pursuit policy + officer training records"
+    - "Speed-at-impact reconstruction"
+    - "Witness statements"
+  pi_angle: "Clean NPS plus strong jury appeal. Often punitive. Watch for police-pursuit policy issues complicating proximate cause."
+
+Fleeing the Scene of a Collision:
+  nps_class_of_victim: "Crash victims (loss of timely medical attention, evidence preservation)."
+  nps_class_of_harm: "Aggravated injuries from delay, identification difficulties for civil recovery."
+  nps_available: true
+  common_defenses:
+    - "Defendant did not know a collision had occurred."
+    - "Defendant left to seek help / call 911."
+    - "Mistaken identification."
+  evidence_to_gather:
+    - "Surveillance footage (intersection, business cams)"
+    - "License plate / vehicle description from witnesses"
+    - "Cell phone records (was 911 called?)"
+    - "Vehicle damage matching"
+    - "Police report + ANY criminal charges"
+  pi_angle: "Strong NPS plus near-certain punitive damages. Criminal conviction usable via collateral estoppel."
+
+Following Too Closely:
+  nps_class_of_victim: "Lead vehicle and its occupants."
+  nps_class_of_harm: "Rear-end collision injuries."
+  nps_available: true
+  common_defenses:
+    - "Lead driver braked unexpectedly / unreasonably."
+    - "Plaintiff stopped without signaling or for no reason."
+    - "Sudden mechanical failure of defendant's vehicle."
+  evidence_to_gather:
+    - "Dashcam (both vehicles if possible)"
+    - "Vehicle damage analysis (impact angle, force)"
+    - "Black box / EDR data from defendant's vehicle (speed, braking)"
+    - "Skid marks"
+    - "Witness statements"
+  pi_angle: "Rear-end is presumptively defendant's fault in most jurisdictions. NPS reinforces. Strong PI fact pattern."
+
+Improper Lane of Travel:
+  nps_class_of_victim: "Oncoming traffic, adjacent-lane drivers."
+  nps_class_of_harm: "Head-on or sideswipe collision injuries."
+  nps_available: true
+  common_defenses:
+    - "Defendant was passing lawfully."
+    - "Plaintiff's lane straddling contributed."
+    - "Mechanical failure / avoidance maneuver."
+  evidence_to_gather:
+    - "Roadway diagram + lane markings"
+    - "Vehicle damage angles"
+    - "Skid marks"
+    - "Witness statements"
+    - "Dashcam footage"
+  pi_angle: "Strong NPS for clear-cut wrong-way / wrong-lane cases. Head-on collisions often catastrophic = high damages."
+
+Improper Passing:
+  nps_class_of_victim: "Oncoming traffic, vehicle being passed, traffic in passing lane."
+  nps_class_of_harm: "Head-on or sideswipe collision injuries."
+  nps_available: true
+  common_defenses:
+    - "Pass was completed safely; collision unrelated."
+    - "Plaintiff sped up during pass."
+    - "Roadway markings unclear (no-pass zone disputed)."
+  evidence_to_gather:
+    - "Roadway photos showing passing/no-passing markings"
+    - "Witness statements on visibility before pass"
+    - "EDR / black box data"
+    - "Dashcam"
+  pi_angle: "Very strong NPS in no-passing-zone violations. Frequently catastrophic damages."
+
+Improper Starting:
+  nps_class_of_victim: "Pedestrians, cyclists, vehicles in defendant's path of travel from stop."
+  nps_class_of_harm: "Pedestrian strike, low-speed collision injuries."
+  nps_available: qualified
+  common_defenses:
+    - "Plaintiff stepped suddenly into path."
+    - "Defendant looked but plaintiff was in blind spot."
+  evidence_to_gather:
+    - "Surveillance footage near stop"
+    - "Defendant's mirror / blind-spot configuration"
+    - "Witness statements"
+  pi_angle: "Often a parking-lot / driveway pattern. Pedestrian-strike NPS strong; vehicle-vehicle weaker."
+
+Improper Stopping:
+  nps_class_of_victim: "Following traffic, traffic merging into defendant's lane."
+  nps_class_of_harm: "Rear-end collision, secondary collisions."
+  nps_available: qualified
+  common_defenses:
+    - "Stop was emergency / mechanical."
+    - "Plaintiff was following too closely (comparative fault)."
+    - "Hazard lights were activated."
+  evidence_to_gather:
+    - "Hazard light status (witness, dashcam)"
+    - "Vehicle inspection (was a stop necessary?)"
+    - "Roadway shoulder availability"
+    - "Witness statements"
+  pi_angle: "NPS available but comparative-fault-heavy. Watch for shared liability."
+
+Improper Turning:
+  nps_class_of_victim: "Cross-traffic, pedestrians in crosswalk, vehicles with right-of-way."
+  nps_class_of_harm: "Intersection collision, pedestrian strike from turn."
+  nps_available: true
+  common_defenses:
+    - "Turn signal was used / not used disputed."
+    - "Plaintiff was speeding through intersection."
+    - "Right-of-way contested."
+  evidence_to_gather:
+    - "Traffic-camera footage"
+    - "Vehicle damage angles"
+    - "Witness statements specifically on signal use and turn timing"
+    - "Intersection geometry"
+  pi_angle: "Top-3 PI fact pattern. Left-turn-into-through-traffic is bread-and-butter NPS."
+
+Reckless Driving:
+  nps_class_of_victim: "All road users."
+  nps_class_of_harm: "Crash injuries from willful / wanton driving."
+  nps_available: true
+  common_defenses:
+    - "Conduct was negligent but not reckless (mens rea)."
+    - "Necessity / emergency."
+    - "Plaintiff comparative fault."
+  evidence_to_gather:
+    - "Speed reconstruction"
+    - "Behavior pattern (witnesses, prior incidents)"
+    - "Dashcam / bodycam"
+    - "Cell phone records (distraction)"
+    - "Criminal charges, if any"
+  pi_angle: "When sustainable, opens punitive damages and aggravated emotional distress claims. Watch the mens rea bar."
+
+Using a Wireless Telephone/Texting While Driving:
+  nps_class_of_victim: "All road users."
+  nps_class_of_harm: "Crash injuries from inattentive driving."
+  nps_available: true
+  common_defenses:
+    - "Phone use was hands-free / lawful exception (emergency, navigation)."
+    - "Phone use did not proximately cause crash."
+    - "Defendant was a passenger holding the phone."
+  evidence_to_gather:
+    - "CELL PHONE RECORDS — call/text logs at exact incident time"
+    - "Phone forensics (was app open at time of crash?)"
+    - "Subpoena for carrier records, not just defendant production"
+    - "Witness statements"
+    - "Dashcam interior view (if available)"
+  pi_angle: "Modern PI category. Strong NPS + jury appeal. Subpoena phone records EARLY — carrier retention is short."
