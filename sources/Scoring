@@ -1,0 +1,66 @@
+EvenUp × OpenClaw Hackathon — Scoring
+
+Mission. Build a legal reserach agent that helps a personal injury attorney do their job — ingest legal data, organize it into a workflow, and chase down the data they don't have.
+
+
+What everyone builds: the Harvester (required)
+
+Every team ships a queryable database of California motor vehicle statutes — the CA Vehicle Code as the baseline. Real source URLs, a documented schema, working queries.
+
+This isn't a data-dumping exercise. We expect you to research how attorneys actually use this data, design your schema deliberately, and ship a query interface a non-engineer could use. Thoughtful data design is half the score on this layer. 
+
+Going deeper here scores more points:
+- More US jurisdictions — vehicle codes from other states beyond California. This is exactly what the held-out eval tests, so this is the highest-leverage place to invest.
+- Related regulations and case law interpreting key sections
+- Authoritative websites — bar associations, court websites, plaintiff firm publications, government agencies. Bonus for building a curated wiki of which online sources are authoritative for what.
+- Federal datasets — NHTSA / CDC / OSHA accident and injury data
+- Smarter modeling of relationships between statutes, regulations, and cases
+
+
+Evaluation: released set + held-out set
+
+Released at kickoff (eval-ca-vehicle-code.csv). 41 California Vehicle Code statutes, each labeled with a contributing factor across 17 categories — DUI, failure to yield, improper passing, reckless driving, and so on. Some categories have multiple example statutes; a third only have one. Every statute in the released set should be in your Harvester at judging time.
+
+Use the released set however helps you build: train on it, design tags around the labels, ignore them. Note the thin tail — categories with only one labeled example are where memorization breaks and real semantic modeling earns its keep.
+
+Held out, revealed at judging. A broader, multi-state set of statutes labeled with the same contributing-factor schema. We don't release it. At judging we run live queries against your Harvester from the held-out set — citation lookup and contributing-factor retrieval. This is the real test: California-only systems score the floor; teams that ingested more jurisdictions and modeled the schema generalizably will score the ceiling. Hardcoded answers won't help — the live demo verifies real retrieval.
+
+
+What you build on top (optional, encouraged)
+
+Pick what excites you. Depth beats breadth — going hard on one extension beats a shallow attempt at both.
+
+The Organizer
+A research workspace a paralegal would actually use. Tag PI-relevant statutes and case law, surface coverage gaps, make damages comparables sortable. 
+
+The Negotiator
+An agent that spots a paywalled gap, finds the data holder, drafts outreach, and tracks the pipeline. Real publishers and verifiable contacts only. 
+
+
+How we score (out of 100)
+
+Harvester (50) — required
+Half on data design — schema, query interface, how well a non-engineer can actually get answers out of it. Half on coverage — measured against both the released CA set (floor) and the held-out multi-state set (ceiling). More jurisdictions, regulations, case law, and authoritative web sources all push you toward the ceiling.
+
+What you built on top (30)
+How well your Organizer or Negotiator (or both) actually solves an attorney's problem. Stacking is fine, but a deep single extension beats two shallow ones.
+
+Craft (10)
+Clean code, thoughtful UX, sensible architecture. The kind of project you'd be proud to show in an interview.
+
+Story (10)
+A 5-minute demo that makes us believe in it.
+
+Ground rules
+- Source everything. Records without a real source URL don't count.
+- No fabricated publishers or contacts in outreach drafts.
+- Be ready to demo live on a query the judges pick — no hardcoded answers.
+
+
+What you get at kickoff
+- eval-ca-vehicle-code.csv — 41 California Vehicle Code statutes labeled across 17 contributing-factor categories
+- Anthropic API keys
+
+
+Prize
+🥇 $2,500 CAD to the winning team.
