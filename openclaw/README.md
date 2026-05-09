@@ -8,7 +8,8 @@ This folder holds everything OpenClaw / Specter (the WhatsApp agent) needs that 
 openclaw/
 ├── skills/                 # AgentSkills Specter loads at runtime
 │   ├── harvester_query/    # Query the FastAPI Harvester for citations / search / ask
-│   └── citation_format/    # Normalize citation strings before lookup
+│   ├── citation_format/    # Normalize citation strings before lookup
+│   └── web_fallback/       # Verified live-fetch when Harvester misses (no fabrication)
 └── README.md               # this file
 
 Folder names use underscores so they're valid Python package names
@@ -25,6 +26,7 @@ Each teammate who runs Specter locally should symlink the skills into their work
 mkdir -p ~/.openclaw/workspace/skills
 ln -sf "$PWD/openclaw/skills/harvester_query"   ~/.openclaw/workspace/skills/harvester_query
 ln -sf "$PWD/openclaw/skills/citation_format"   ~/.openclaw/workspace/skills/citation_format
+ln -sf "$PWD/openclaw/skills/web_fallback"      ~/.openclaw/workspace/skills/web_fallback
 ```
 
 OpenClaw discovers skills under `~/.openclaw/workspace/skills/*/SKILL.md` automatically — no restart needed for new skills, but you may need a `openclaw gateway restart` if a skill isn't picked up after a few seconds.
@@ -39,9 +41,11 @@ export SPECTER_API=http://127.0.0.1:8000
 
 ## Python deps
 
-The `harvester_query` client uses `httpx` (already in `requirements.txt`). Run `make install` from the repo root once before invoking the skill so the import works.
+- `harvester_query` uses `httpx` (already in `requirements.txt`).
+- `web_fallback` uses `httpx` + `beautifulsoup4` + `lxml` (already in `requirements.txt`); the optional `summarize` step also uses `anthropic`.
+- `citation_format` is pure stdlib — no install needed.
 
-The `citation_format` skill is pure stdlib — no install needed.
+Run `make install` from the repo root once before invoking the skills so imports resolve.
 
 ## Persona
 
