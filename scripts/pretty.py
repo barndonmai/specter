@@ -18,7 +18,16 @@ import json
 import os
 import sys
 import textwrap
-import httpx
+from pathlib import Path
+
+# Make the repo root importable so `from api.pi_brief import ...` works when
+# this script is invoked as `python scripts/pretty.py ...`. Without this,
+# Python only puts scripts/ on sys.path and any cross-package import fails.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+import httpx  # noqa: E402  (intentional after sys.path tweak)
 
 API = os.getenv("SPECTER_API", "http://127.0.0.1:8000")
 
@@ -175,7 +184,18 @@ def cmd_lookup(args):
     if r.status_code != 200:
         print(c(RED, f"error {r.status_code}: {r.text}"))
         sys.exit(1)
-    render_lookup(r.json())
+    record = r.json()
+    if getattr(args, "brief", False):
+        # PI-lawyer brief format: bluebook + pull quote + NPS analysis +
+        # defenses + evidence + Specter notes. Sourced from
+        # api.pi_brief which joins the record with data/pi_playbook.yaml.
+        try:
+            from api.pi_brief import build_brief, render_ansi
+            print(render_ansi(build_brief(record)))
+            return
+        except Exception as e:  # noqa: BLE001
+            print(c(YELLOW, f"[brief] render failed, falling back to default: {e}"))
+    render_lookup(record)
 
 
 def cmd_search(args):
@@ -231,6 +251,11 @@ def main() -> None:
 
     pl = sub.add_parser("lookup")
     pl.add_argument("citation")
+    pl.add_argument(
+        "--brief",
+        action="store_true",
+        help="Render the PI-lawyer brief format (bluebook citation, pull quote, NPS analysis, defenses, evidence) instead of the default record view.",
+    )
     pl.set_defaults(func=cmd_lookup)
 
     ps = sub.add_parser("search")
