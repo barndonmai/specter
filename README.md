@@ -13,7 +13,7 @@ Under the hood: 384 tagged statutes across 6 states, a curated wiki of authorita
 
 | Layer | What | Numbers |
 |---|---|---|
-| **Coverage** | Vehicle / traffic statutes across U.S. jurisdictions | **384 records · 6 states** (CA, TX, FL, PA, IL, OH) |
+| **Coverage** | Vehicle / traffic statutes across U.S. jurisdictions | **724 records · 6 states** (CA, TX, FL, PA, IL, OH) |
 | **Classification** | Raw `contributing_factor` from each state's CSV | 17-category schema + per-state extras |
 | **Abstraction** | Normalized `legal_topic` (Claude-enriched) | **21 topics · 19 in active use** · 73% records ≥ 0.9 confidence |
 | **Embeddings** | Voyage `voyage-law-2` over the statute text | 1024-dim, unit-normalized, cosine search |
